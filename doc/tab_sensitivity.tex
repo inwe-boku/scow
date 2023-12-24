@@ -1,0 +1,49 @@
+\begin{ThreePartTable}
+ \renewcommand\TPTminimum{\textwidth}
+    \begin{TableNotes}
+        \footnotesize
+        \item standard deviations in parentheses; $^{***}$, $^{**}$, $^{*}$ indicate significance at the \SI{1}{\percent}, \SI{5}{\percent}, and \SI{10}{\percent} levels, respectively
+        \item $d()$ indicates distance in km
+    \end{TableNotes}
+        
+    \begin{longtable}{l c c}
+        \caption{Estimates from iterated discrete choice estimation with state-of-the-art wind turbines} \label{tab:sensitivity}\\
+        \toprule
+        \textbf{Attribute} & \textbf{estimates}  & \textbf{WTP}\\
+        \midrule
+        \endhead
+        \midrule
+        \multicolumn{3}{c}{\textit{continued on next page}} 
+        \endfoot
+        \bottomrule
+        \insertTableNotes
+        \endlastfoot
+        % table contents
+         Airports                                     & $\underset{(0.36111)}{-2.52935^{***}}$ & $12.575$ \\ 
+         Alpine Convention                            & $\underset{(0.31636)}{-3.56513^{***}}$ & $17.725$ \\
+         Protected areas                              & $\underset{(0.21209)}{-1.95393^{***}}$ & $9.714$ \\      
+         Important bird areas                         & $\underset{(0.15715)}{-0.68750^{***}}$ & $3.418$ \\
+         Important bird area $\times$ Protected areas & $\underset{(0.30741)}{-0.51910^{**}}$ & $2.581$ \\
+         Landscapes worth preserving                  & $\underset{(0.21570)}{-0.46576^{**}}$   & $2.316$  \\
+         Pastures                                     & $\underset{(0.36213)}{-1.39548^{***}}$ & $6.938$ \\ 
+         Restricted military areas                    & $\underset{(0.20869)}{-0.17413^{}}$    & $0.866$ \\ 
+         Dominant leaf type: broad leafed             & $\underset{(1.23256)}{1.66107^{*}}$   & $-8.258$  \\
+         Dominant leaf type: coniferous               & $\underset{(1.91408)}{7.68152^{***}}$  & $-38.190$  \\
+         Tree cover density                           & $\underset{(0.22062)}{1.02942^{***}}$  & $-5.118$ \\
+         Tree cover density $\times$ broad leafed     & $\underset{(1.43756)}{-3.71410^{***}}$ & $18.465$ \\
+         Tree cover density $\times$ coniferous       & $\underset{(2.23728)}{-8.40412^{***}}$ & $41.782$ \\
+         d(Other Building land)                             & $\underset{(0.07048)}{0.31844^{***}}$  & $-1.583$ \\
+         d(Grid infrastructure)                       & $\underset{(0.01441)}{-0.09464^{***}}$ & $0.471$ \\
+         d(Greenland buildings worth preserving)      & $\underset{(0.06117)}{0.49665^{***}}$  & $-2.469$    \\
+         d(Residential buildings)                     & $\underset{(0.08712)}{1.68321^{***}}$  & $-8.368$  \\
+         d(Pre-existing wind turbines)                & $\underset{(0.00881)}{ -0.13081^{***}}$ & $0.650$ \\
+         d(High-level roads)                          & $\underset{(0.08091)}{-0.06579}$    &  $0.327$ \\
+         Elevation                                    & $\underset{(0.00032)}{-0.00138^{***}}$ & $0.007$ \\     
+         Terrain slope                                & $\underset{(0.01040)}{-0.07194^{***}}$ & $0.358$ \\
+         Touristic overnights                         & $\underset{(0.00183)}{-0.01207^{***}}$ & $0.060$ \\ 
+         Quasi-LCOE                                   & $\underset{(0.01334)}{-0.20114^{***}}$ & $1.000$ \\ \midrule
+         Log-Likelihood                               & -1033.5\\
+         AIC                                          & 2113.0\\
+         Adj. R$^2$                                   & 0.843\\
+    \end{longtable}
+\end{ThreePartTable}

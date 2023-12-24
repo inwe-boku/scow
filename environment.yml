@@ -1,0 +1,19 @@
+# conda environment for estimating the valuation of landscapes
+name: scow
+channels:
+  - conda
+  - conda-forge
+dependencies:
+  - python==3.9
+  - scipy
+  - numpy
+  - pandas
+  - openpyxl
+  - geopandas >= 0.10
+  - xarray
+  - rioxarray
+  - netcdf4
+  - xarray-spatial
+  - seaborn
+  - contextily
+  - pip

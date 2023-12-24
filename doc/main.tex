@@ -1,0 +1,725 @@
+\documentclass[review, a4paper, 12pt, authoryear, times]{elsarticle}
+\usepackage[utf8]{inputenc}
+
+\usepackage[fleqn]{amsmath}
+\usepackage{mathrsfs}
+\usepackage{mathtools}
+\usepackage{siunitx}
+\DeclareSIUnit{\year}{a}
+\DeclareSIUnit{\hectares}{ha}
+\DeclareSIUnit{\million}{\text{mn}}
+\DeclareSIUnit{\EUR}{\text{\euro}}
+
+\usepackage{graphicx}
+\usepackage{dsfont}
+\usepackage{multirow}
+\usepackage{threeparttablex}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{makecell}
+\usepackage[gen]{eurosym}
+% enable subfigures with subcaptions
+\usepackage{caption}
+\usepackage{subcaption}
+
+\renewcommand\cellset{\renewcommand\arraystretch{0.8}%
+\setlength\extrarowheight{0pt}}
+
+\usepackage{calc}
+\usepackage{hhline}
+
+\usepackage{tikz, pgfplots}
+\pgfplotsset{compat=1.10}
+\usepgfplotslibrary{fillbetween}
+
+\usepackage{url}
+\def\UrlBreaks{\do\/\do-}
+
+\usepackage{colortbl}
+\usepackage{xcolor}
+
+\journal{Energy Economics}
+
+\defcitealias{GIP2023}{ÖVDAT, 2023}
+\usepackage{setspace}
+
+\begin{document}
+\begin{frontmatter}
+        \title{Inferring local social cost from renewable zoning decisions. Evidence from Lower Austria's wind power zoning.}
+        \author[1]{Sebastian Wehrle\corref{cor1}}
+        \ead{sebastian.wehrle@boku.ac.at}
+        \author[1]{Peter Regner}
+        \author[1]{Ulrich B. Morawetz}
+        \author[1]{Johannes Schmidt}
+        \cortext[cor1]{Corresponding author}
+        \address[1]{Institute for Sustainable Economic Development, University of Natural Resources and Life Sciences,
+        Feistmantelstrasse 4, 1180 Vienna, Austria}
+        %\address{PRELIMINARY AND INCOMPLETE\\ This version: \today}
+        \begin{abstract}
+        %abstract
+        Large infrastructures, such as wind turbines, may adversely affect their environment, so their deployment is often regulated. 
+        These regulations are frequently based on a dichotomy between areas considered feasible or infeasible areas for infrastructure deployment. To overcome the inability of such a binary distinction to adequately represent the involved economic trade-offs between, but also within feasible and infeasible areas, we establish a discrete choice framework to elicit social preferences implicit in Lower Austria's wind power zoning and generate comprehensive estimates of local social costs in high spatial resolution.
+        Our findings suggest that wind turbines were attributed significant local social costs in the political zoning process. These local social cost estimates can inform siting decisions, improve power system modelling and open a novel perspective on the assessment of potentials for renewable energies.
+        \end{abstract}
+        % context / general topic / specific topic
+        % problem statement / central questions
+        % methods
+        % findings, results, arguments
+        % significance or implications
+
+        \begin{keyword}
+            externalities \sep wind power \sep renewable energy \sep power system design \sep policy
+            \JEL C25 \sep Q42 \sep Q48 \sep Q51 \sep R52
+        \end{keyword}
+\end{frontmatter}
+
+\section{Introduction} \label{sec:intro}
+Decisions depend on available alternatives.
+Good decisions weigh the available alternatives.
+Optimal decisions trade marginal benefits off against marginal losses.
+However, standard layered assessments\footnote{\cite{McHarg1969} developed layered assessments as a supposed means of aligning spatial planning with the maximisation of `social utility' and exemplarily applied it to highway planning. In contrast to later potential assessments, McHarg did not distinguish between `feasible' and `infeasible' areas.} of wind power potentials often partition the considered space coarsely into infeasible and potential areas based on `theoretical', `geographic', `technical', and `economic' grounds \citep{McKenna2022}.
+The arising dichotomy of rejected `infeasible' areas and left-over `potential' sites neglects trade-offs between these areas.
+In response to this deficiency, several papers vary the boundary between the feasible and the infeasible to quantify implicit trade-offs. 
+Examples include work by \cite{McKenna2021}, who assess electricity system cost for various levels of a spatial indicator of scenicness to proxy for the boundary between the feasible and the infeasible.
+Similarly, \cite{Reutter2023} assessed the social cost for various setback distances from residential dwellings and red kite nests.
+
+While these works assess implicit trade-offs between feasible and infeasible areas, relevant trade-offs within feasible areas arising from spatial heterogeneity beyond heterogeneity in wind resources are rarely assessed.
+% new
+To reflect such trade-offs, a strand of literature specifies social cost or welfare functions by adding measures of disamenity \citep{Ruhnau2022, Lehmann2023} and ecological cost \citep{Drechsler2011, Grimsrud2021} to the levelized cost of electricity (LCOE), representing wind resource quality and the private cost of wind power.
+These welfare-centred papers determine socially optimal wind turbine sites by applying \emph{a priori} social cost quantifications. 
+This paper, in contrast, proceeds in the opposite direction.
+We quantify the local social cost of wind power \emph{ex-post} based on an observed location decision in the Austrian federal state of Lower Austria.
+The paper's central idea is that by selecting wind turbine sites, the zoning authority reveals its preferences over underlying spatial attributes.
+From these preferences, we can infer the valuation of spatial attributes by analysing corresponding trade-offs.
+As a result, we generate estimates of wind turbines' implied social (i.e.\ private plus external) costs at the local level.
+We refer to these costs as the \emph{local cost} of wind power.
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c|l|l|}
+     \multicolumn{1}{c}{} & \multicolumn{1}{c}{private} & \multicolumn{1}{c}{external} \\
+    \hhline{~--}
+        \multirow [t]{3}{*}{\rotatebox[origin=c]{90}{\parbox{2.4cm}{\centering location-independent}}} & \parbox[c][3.0cm][c]{4cm}{\begin{itemize} \setlength\itemsep{0.1em} \singlespacing
+            \item turbine \\investment \item operation \& \\maintenance \end{itemize}} & \cellcolor{lightgray!50} \parbox[c][3.0cm][c]{4cm}{\begin{itemize} \item system\\ integration \end{itemize}}\\
+        \hhline{~--}
+        \multirow [t]{4}{*}{\rotatebox[origin=c]{90}{\parbox{2.4cm}{\centering location-dependent}}} & \parbox[c][3.0cm][c]{4cm}{\begin{itemize} \item balance-of-service cost \end{itemize}} & \parbox[c][3.0cm][c]{4cm}{\begin{itemize}\setlength\itemsep{0.1em} \item disamenities \item ecological cost \end{itemize}}\\
+        \hhline{~--}
+    \end{tabular}
+    \caption{Dimensions of the social cost of wind power. Location-dependent, external cost in the upper-right, greyed quadrant are out of the scope of this paper.}
+    \label{tab:socotable}
+\end{table}
+In contrast, the external cost of wind power at the power-system level has received considerable attention in the literature reviewed, for example, by \cite{Heptonstall2021}. 
+However, analysing the external effects of wind power in the power system (upper right corner in Table~\ref{tab:socotable}) is out of the scope of this paper.
+Instead, we focus on the local effects of wind power, which are tied to wind turbine placement.
+
+At the wind turbine level, private costs arise for the turbine investment, operation, and maintenance.
+While the wind turbine cost (rotor, nacelle, tower) is largely independent of local factors due to global value chains, balance-of-service costs (most notably the cost of electrical infrastructure, the foundation, and turbine assembly and installation) have a stronger local dependency \citep{Eberle2019, Stehly2022}. 
+Wind turbines' external costs at the local level stem from their adverse effects on humans (disamenities) and nature (ecological cost).
+Wind turbine disamenities may arise from noise \citep{Radun2022}, ice shedding, shadow flicker \citep{Haac2022}, or interference with landscape aesthetics \citep{Meyerhoff2010}. 
+The ecological cost of wind turbines may arise, for example, through the collision risk of insects, bats, birds and terrestrial mammals \citep{Thaxter2017} or the disturbance of their habitats \citep{Coppes2020a}.
+
+To quantify the costs associated with wind turbines at the local level, we methodologically lean on pioneering work by \citet{mcfadden_revealed_1975, mcfadden_revealed_1976}, who demonstrated for the case of freeway planning by the Californian Division of Highways, that agency preferences can be elicited through a multinomial logit model of choice.
+Our methodological approach allows us to transcend layered potential analyses and their need for a dichotomy of the (in)feasible. 
+We are able to generate comprehensive estimates of local social costs in high spatial resolution for the entire considered space.
+As there are no infeasible areas in our analysis, there are no unrecognised trade-offs between the feasible and the infeasible.
+Additionally, our approach complements previous attempts to quantify the externalities of renewables through choice experiments \citep[e.g.][]{AlvarezFarizo2002, Drechsler2011}, hedonic analyses of property prices \citep[e.g.][]{Hoen2011, Droees2021, Gaur2023}, and elicitation from self-reported well-being data \citep{Krekel2017}.
+In contrast to these approaches, we do not infer individual preferences. 
+Instead, we elicit the valuation of spatial properties from a political process that aggregates diverse views into a zoning decision.
+
+The following section~\ref{sec:desclaut} describes Lower Austria's wind power zoning process, which is the basis of our analysis.
+Subsequently, section~\ref{subsec:methods} develops a methodological framework for the spatial discrete choice analysis and describes the corresponding implicit valuation of spatial attributes.
+Section~\ref{subsec:data} describes the data underlying our analysis.
+Section~\ref{sec:results} presents the estimated relative weights attached to spatial attributes, the corresponding valuation, the privately and socially optimal allocation of wind turbines, and the local social cost curve of wind power consistent with Lower Austria's zoning.
+Section~\ref{sec:discussion} discusses our results, while section~\ref{sec:conclusio} concludes.
+
+\section{The process of wind power zoning in Lower Austria} \label{sec:desclaut}
+Spatial planning, including wind power zoning, is within the competency of Austria's nine federal states.
+The federal state of Lower Austria, which hosts some of the nation's best wind resources, decreed wind power zones in 2014.
+The zoning decision constrains the lower administrative level, i.e. municipalities, in their spatial planning.
+Municipalities may designate specific areas for wind power only in wind power zones. No part of a wind power zone may be designated as building land or for recreational purposes.
+In effect, the Lower Austrian government pre-selected potential wind turbine sites through wind power zoning.\footnote{The Lower Austrian government is free in its zoning decision, as any potential violation of higher-ranking laws is assessed on a case-by-case basis when specific areas are designated for wind power at the municipal level.}
+
+The decreed zoning scheme was developed based on the state's regional planning law (NÖ Raumordnungsgesetz 1976, particularly §19(3)). 
+By this law, wind power zoning must respect (i) minimum distances to "wind power sensitive" zones, (ii) interests of nature conservation, (iii) ecological value, (iv) landscape scenery, (v) touristic interests, (vi) conservation of alpine regions, (vii) existing electricity grid infrastructures, and (viii) pre-existing wind parks. 
+Moreover, potential turbine sites are required to have an average power density of at least \SI{220}{\watt\per\metre\squared} in \SI{130}{\metre} height above ground.
+
+During the zoning process, the above requirements were translated to more specific spatial attributes for which data was available. 
+According to the process documentation \citep{Knoll2014}, some of the most important considered attributes are (i) the proximity to current or planned settlements, (ii) the proximity to current or planned "buildings in the greenland worthy of protection", (iii) any area protection status, (iv) the relevance for bird life, and (v) other restricted areas, such as no flight zones.
+
+The resulting draft of the zoning scheme was put up for stakeholder evaluation, which led to a further reduction of pre-selected wind power zones.
+However, the zoning documentation is silent regarding how the stakeholder consultations proceeded.
+After the final consultation, the Lower Austrian government decreed the wind power zoning scheme, which became effective in 2014.
+
+\section{Methods and Data}
+\subsection{Methods} \label{subsec:methods}
+We understand the wind power zoning process as a problem of a welfare-maximizing social planner deciding where wind turbines may be constructed. Wind power has effects at different scales; some are location-specific, while others are independent of local circumstances and manifest within the power system.
+For the purpose of our analysis, we assume that welfare at the power system scale is separable from location-bound welfare and that any effect related to the intermittent nature of wind power pertains solely to the power system. 
+Consequently, we isolate local social welfare $U$, related to the locations where wind turbines are placed, from total welfare $W$.
+As $U$ has a spatial dimension, we partition the total considered area into pixels and refer to each pixel as \emph{location}.
+The set $\mathscr{L}$ contains all locations, and variables referring to locations are indexed by subscript $\ell = 1, \ldots, L$.
+A zoning vector $z \in \mathscr{Z}$, of size ($1 \times L$) collects the zoning decisions for each location, i.e. $z_{\ell}$ equals one if a wind turbine is admissible at location $\ell$ and zero otherwise.\\
+The social planner maximizes local social welfare by selecting a zoning $z$ from $\mathscr{Z}$, i.e.\ $\mathscr{Z}$ is our choice set.
+The corresponding level of local social welfare $U$ equals the sum of local welfare $u_{\ell}$ over the zoned locations, i.e. $U = z \cdot u$, where $u$ is a $(L \times 1)$ vector of location-specific welfare.
+Local welfare $u_{\ell}$ comprises welfare from observed location-specific attributes $v_{\ell}$ as well as from unobserved local attributes, modelled through an identically and independently distributed random variable $\varepsilon_{\ell}$ so that $u_{\ell} = v_{\ell} + \varepsilon_{\ell}$.
+Thus, local welfare at any two locations can be compared independently of all other locations.
+Consider a zoning $\widetilde{z}$ that differs from zoning $\hat{z}$ only in the choice of a single selected location, i.e. $\widetilde{z}_i = 1, \hat{z}_i = 0$ and $\widetilde{z}_j = 0, \hat{z}_j = 1$ for two locations $i$ and $j$  and $\widetilde{z}_l = \hat{z}_l$  for all other locations $l\neq i, l\neq j$.
+The probability of choosing a zoning corresponding to local social welfare $\widetilde{U}$ over one with local social welfare of $\hat{U}$ is
+\begin{align}
+    \Pr(\widetilde{U} > \hat{U}) = \Pr(\widetilde{z} \cdot u > \hat{z} \cdot u) = \Pr(u_i > u_j) = \Pr(v_i - v_j + \varepsilon_i > \varepsilon_j)
+\end{align}
+Hence, the choice between zoning $\widetilde{z}$ and $\hat{z}$ depends only on the (observed and unobserved) attributes of locations $i$ and $j$.
+Zonings such as $\widetilde{z}$ and $\hat{z}$ can be constructed for any two distinct locations, allowing us to elicit implicit preferences over spatial attributes through the pairwise comparison of locations.
+
+Moreover, when $\varepsilon$ is an independent and identically Gumbel distributed random variable, the probability of selecting zoning $\widetilde{z}$ with the single distinct location $i$ over all alternative zonings with single distinct locations $j \neq i$ is 
+\begin{align}
+    \Pr_{i} = \frac{\mathrm{e}^{v_{i}}}{\sum_{j} \mathrm{e}^{v_j}} \label{eq:prob}
+\end{align}
+as in the well-known multinomial logit model of choice \citep{McFadden1974}.
+
+Following \cite{Train2005}, we specify local welfare as linearly dependent on the parameters of the social welfare function, that is
+\begin{align} \label{eq:socpref}
+    u_{\ell} = v_{\ell} + \varepsilon_{\ell} = X_{\ell} \beta + c_{\ell} \alpha + \varepsilon_{\ell}
+\end{align}
+where $X$ is a $(L \times n)$ matrix of $n$ spatial attributes, $\beta$ is a $(n \times 1)$ vector of welfare weights, $c_{\ell}$ is the quasi-LCOE\footnote{Quasi-LCOE represent the expected, discounted lifetime average cost of electricity generation resulting from location-specific wind resource quality and wind turbine-specific investment cost excluding location-dependent balance of service-costs as detailed in section \ref{subsec:data} and \ref{app:qlcoe}.} of the least-cost wind turbine at location $\ell$ and $\alpha$ is the corresponding welfare weight.
+The parameters $\alpha$ and $\beta$ can be estimated via maximum likelihood so that the probability of observing the actually zoned locations, given by equation \eqref{eq:prob}, is maximized \citep{McFadden1974, Train2009}.
+
+Due to the large size of our sample and the relatively low number of zoned locations, we employ an iterative estimation procedure.
+In each iteration, we construct pairwise comparisons between the zoned locations and an equal amount of randomly selected non-zoned locations.
+\cite{McFadden1978} suggests repeated pairwise comparisons of options to estimate multinomial logit models with large samples and proves the consistency of such parameter estimates for valid multinomial models.
+
+To uncover the social planner's willingness to pay for avoiding wind turbines at locations with given spatial attributes, we compute the total differential of the local welfare function $u(x_i,c)$.
+(For a step-by-step derivation, see~\ref{app:marginal-rate-substitution}.)
+Holding local welfare constant, we can derive the marginal rate of substitution at which the social planner would trade off a one-unit change in any spatial attribute in $X$ for a change in quasi-LCOE as
+\begin{align}\label{eq:totdiff}
+    \frac{dc}{dx_i} = - \frac{\partial u}{\partial x_i} / \frac{\partial u}{\partial c} - \sum_{j \neq i}^{n} \left( \frac{\partial u}{\partial x_j} / \frac{\partial u}{\partial c} \right) \frac{dx_j}{dx_i}
+\end{align}
+
+Equation \eqref{eq:totdiff} states that in addition to the direct effect of a change in spatial attributes, the social planner also values the indirect effect moderated through a potential linkage of the considered spatial attribute to all other spatial attributes.
+We treat the (exogenous) spatial attributes as independent so that $dx_j / dx_i = 0$ and equation \eqref{eq:totdiff} reduces to $dc / dx_i = - \frac{\partial u}{\partial x_i} / \frac{\partial u}{\partial c}$.
+As local welfare is linearly dependent on estimated coefficients (cf. equation \eqref{eq:socpref}), the social planner's implied willingness to pay for spatial attribute $i$ then equals
+\begin{align}\label{eq:mrs}
+    \frac{d c}{dx_i} = - \frac{\beta_i}{\alpha}
+\end{align}
+\citep[see also][]{Train2009, Louviere2010}.
+
+\subsection{Data} \label{subsec:data}
+In selecting relevant spatial attributes, we follow Lower Austria's strategic environmental assessment of its wind power zoning \citep{Knoll2014}, which documents its derivation.\footnote{See section \ref{sec:desclaut} for a more detailed description of Lower Austria's wind power zoning process.}
+Spatial attributes which must be considered, according to the Lower Austrian spatial planning law, include (minimum) distances to select buildings (most importantly residential dwellings), nature conservation areas (including national parks, nature conservation areas, protected landscapes, bird reserves, and others), areas of ecological and touristic significance, flight safety zones, visual axes, subregional zonings, existing infrastructures, and others. 
+
+To reflect the planning principles, such as a potential preference for spatial concentration or dispersion of wind turbines, we further include locations of wind turbines existing at the time of zoning as well as distances to these pre-existing turbines. 
+Differences in wind resource quality at different locations are reflected by the `quasi-levelized cost of electricity' (quasi-LCOE) of wind turbines computed for pixel-specific wind resources.
+In addition, we considered spatial attributes relevant to wind power potentials compiled by \cite{McKenna2022} from a review of more than 300 studies.
+These attributes include the terrain slope, water bodies, roads, airports, and forests.
+In the following, we describe the sources and the processing of the data underlying our empirical analysis. 
+Corresponding summary statistics are provided in Table \ref{tab:sumstat}. In the following subsections, we describe the variables used.
+
+\begin{ThreePartTable}
+ \renewcommand\TPTminimum{\textwidth}
+    \begin{TableNotes}
+        \footnotesize
+        \item $d()$ indicates distance
+    \end{TableNotes}
+        
+\begin{longtable}{lrrrrr}
+\caption{Summary Statistics ($N=$ \num{480835})} \label{tab:sumstat} \\
+\toprule
+Variable & Unit & Mean & Std. Dev. & Min & Max \\
+\midrule
+\endhead
+\midrule
+\multicolumn{6}{c}{\textit{continued on next page}}
+\endfoot
+\bottomrule
+\insertTableNotes
+\endlastfoot
+% table contents
+Wind power zoning           & -- & 0.020 & 0.141 & 0 & 1 \\ 
+Airports                    & -- & 0.025 & 0.156 & 0 & 1 \\
+Alpine convention           & -- & 0.319 & 0.466 & 0 & 1 \\
+Protected areas             & -- & 0.356 & 0.479 & 0 & 1 \\
+Important bird areas        & -- & 0.260 & 0.439 & 0 & 1 \\
+Landscapes worth preserving & -- & 0.028 & 0.166 & 0 & 1 \\
+Pastures                    & -- & 0.099 & 0.299 & 0 & 1 \\
+Restricted military areas   & -- & 0.029 & 0.167 & 0 & 1 \\
+Water bodies                & -- & 0.046 & 0.210 & 0 & 1 \\
+Dominant leaf type: broad leaved & -- & 0.145 & 0.352 & 0 & 1 \\
+Dominant leaf type: coniferous   & -- & 0.156 & 0.363 & 0 & 1 \\
+Tree cover density          & -- & 0.363 & 0.422 & 0.000 & 1.000 \\
+d(Grid infrastructure)      & \si{\kilo\metre}  & 4.466  & 4.334  & 0.000  & 22.232 \\
+d(Greenland build. w. pres.) & \si{\kilo\metre} & 0.972  & 0.803  & 0.000  & 8.014 \\
+d(Residential buildings)    & \si{\kilo\metre}  & 0.993  & 1.004  & 0.000  & 11.194 \\
+d(Other building land)      & \si{\kilo\metre}  & 1.194  & 1.003  & 0.000  & 12.134 \\ 
+d(Pre-existing wind turbines) & \si{\kilo\metre} & 12.243 & 7.944 & 0.000  & 39.309 \\
+d(Greenland zoning)         & \si{\kilo\metre}  & 3.124  & 2.128  & 0.000  & 15.441 \\
+d(High-level roads)                    & \si{\kilo\metre}  & 0.664  & 0.782  & 0.000  & 9.905 \\
+Elevation                   & \si{\metre}       & 457.81 & 259.79 & 134.47 & 2,044.16 \\
+Terrain slope               & \si{\degree}      & 9.223  & 9.968  & 0.000  & 80.092 \\
+Touristic overnights        & --                & 18.080 & 41.881 & 0.000  & 437.458 \\
+Quasi-LCOE                  & \euro/\si{\mega\watt\hour} & 46.909 & 12.226 & 24.166 & 882.984 \\ 
+\end{longtable}
+\end{ThreePartTable}
+
+\subsubsection{Wind power zoning}
+The provincial government provides geolocations of designated wind power zones in Lower Austria \citep{LandNiederoesterreich2014}.
+For further analysis, we resolve the Lower Austrian territory to a grid of approximately \SI{200}{\metre} in width, also underlying the Global Wind Atlas 3 \citep{DTU2022}.
+Subsequently, we map the geolocations of wind power zones to the grid's pixels.
+We consider a pixel as zoned if the provided zoning polygon touches it.
+The corresponding attribute, equal to $1$ if zoned and $0$ otherwise, serves as our dependent variable.
+
+\subsubsection{Wind resources} \label{data:wind-resources}
+For an adequate spatial representation of wind resources, we rely on the Global Wind Atlas 3 (GWA 3) \citep{DTU2022}, which provides the parameters of a Weibull distribution of wind speeds at different heights above ground.
+We combine this data with wind turbine power curves from Renewable Ninja's Virtual Wind Farm model \citep{Staffell2016} and the \cite{oep2019} wind turbine library to compute the capacity factors of 37 wind turbine models at each pixel. To account for downtimes and losses and a known tendency of GWA 3 to overestimate wind resource quality in Austria \citep{Gruber2019}, we reduce the capacity factors to align them with observed wind power generation.
+\ref{app:capacity-factors} provides further details on the computation of capacity factors.
+
+Subsequently, we compute the expected average cost of wind power generation over a wind turbine's lifetime based on operation and maintenance as well as on the spatially invariant part of investment cost for all \num{37} considered wind turbine models.
+As this measure resembles the levelized cost of electricity (LCOE) but does not include location-dependent balance-of-system cost \citep{Eberle2019}, we refer to this cost as `\emph{quasi-LCOE}'.
+According to \cite{Eberle2019}, balance-of-service costs account for about \SI{30}{\percent} of the total investment cost of onshore wind turbines.
+Further details on the computation of quasi-LCOE are provided in~\ref{app:qlcoe}.
+
+Finally, we select the least-cost wind turbine model for each location and use the corresponding quasi-LCOE to construct a spatial dataset of minimal quasi-LCOE.
+The set of least-cost turbine models comprises six distinct wind turbine models.
+The resulting variable is named \emph{Quasi-LCOE}.
+
+\subsubsection{Security and safety areas}
+In some parts of Lower Austria, deploying wind turbines is prohibited for security reasons.
+In the vicinity of airports, built infrastructures are subject to maximum heights. 
+For the civilian airports in Schwechat and Vöslau \cite{BMK2019, AustroControl2023a} regulate safety distances of \SI{6250}{\metre} and \SI{2500}{\metre}, respectively.
+For military airports located in Langenlebarn and Wiener Neustadt, no information on minimum distances is published. 
+Thus, we assume a minimum distance of \num{5000} meters. 
+We create buffers of the corresponding size around the area of all airports extracted from Corine Land Cover 2018 data \citep{UBA2018b}. 
+The dummy variable \emph{Airports} equals \num{1} at each pixel within the buffers around airports and \num{0} otherwise.
+
+Furthermore, wind turbine deployment is also forbidden in restricted military areas, most notably the military training area in Allentsteig.
+Corresponding geodata was obtained from \cite{AustroControl2023}.
+We create a binary dummy named \emph{Restricted military areas}.
+
+\subsubsection{Alpine region}
+Lower Austria is committed to protecting the alpine region and, according to \cite{Knoll2014}, considered respective conservation interests in its wind power zoning.
+However, the spatial extent of the alpine region is not clearly defined. 
+Thus, we approximate the Alpine region by the scope of application of the \cite{AlpineConvention2020} and generate the corresponding dummy variable \emph{Alpine convention}.
+
+\subsubsection{Municipal zoning}
+Municipalities in Lower Austria are entitled to dedicate parts of their territory to specific uses within the limits set by the higher-level planning authority, i.e.\ the Lower Austrian government. 
+Admissible uses differentiate between the broader categories `building land' and `greenland', again subdivided into finer categories.
+Building land is subdivided into categories for residential, mixed residential-commercial, commercial, industrial and special uses, all of which preclude land use for wind power.
+Wind turbines are legally also required to maintain a minimum distance of \SI{1200}{\metre} from residential buildings.\footnote{Additionally, wind turbines must respect a minimum distance of \SI{2400}{\metre} to buildings in neighboring municipalities.}
+Accordingly, we generate the dummy variables \emph{Residential buildings}, comprising of residential and mixed residential commercial zones, and \emph{Other building land}, representing all other zones of the building land category.
+The dummy variables equal \num{1} if a pixel touches the corresponding designated land use polygon. 
+Finally, we compute the distance between each pixel's centre and the closest pixel of the respective zones and abbreviate it by \emph{d()}. 
+The resulting variables are \emph{d(Residential buildings)} and \emph{d(Other building land)}.
+
+Moreover, municipalities may designate land to two further zoning categories to which wind turbines legally must respect a minimum distance of \SI{750}{\metre}.
+The first category is dedicated to specific `greenland uses', such as camping sites, garden plots, and agricultural farmsteads.
+Our dataset contains \num{1434} areas designated to `greenland uses' spread across \num{3202} pixels.
+The variable \emph{d(Greenland zoning)} reflects the distance from each pixel's centre to the nearest pixel with a `greenland use'.
+The second category holds areas dedicated to `buildings in the greenland worthy of preservation'. 
+A total of \num{28475} such buildings are contained in our dataset, pertaining to \num{18399} pixels.
+The corresponding variable \emph{d(Greenland buildings worth preserving)} holds the distance between each pixel's centre and the nearest pixel designated to buildings in the greenland worthy of preservation.
+We retrieved the corresponding geodata covering municipal zoning from \cite{LandNiederoesterreich2022a, LandNiederoesterreich2022}.
+
+\subsubsection{Protected areas}
+The World Database on Protected Areas by \cite{WDPA2023} provides geodata on protected areas differentiated by protection status. 
+As the Lower Austrian zoning excludes all protected areas regardless of protection status, we construct a dummy equal to one if a pixel is touched by a protected area polygon of any protection status and zero otherwise.
+The corresponding variable is named \emph{Protected areas}.
+
+\subsubsection{Important Bird Areas}
+In addition to excluding protected areas, the Lower Austrian government consulted with the NGO `Birdlife Austria' to identify further important bird areas which should be barred from wind power development.
+The corresponding geodata was provided by \cite{BirdLife} upon request and transformed into a variable equal to one if a pixel touches an important bird area and zero otherwise. 
+We refer to the resulting variable as \emph{Important bird areas}.
+As important bird areas and protected areas partially overlap, we construct an interaction variable for the corresponding variables.
+
+\subsubsection{Landscapes worth preserving}
+Several regional planning programmes in Lower Austria define `landscapes worthy of preservation', which restrict municipalities in their zoning decisions. 
+Wind power is not admissible in such landscapes of distinct aesthetic, recreational, or ecological value. 
+We construct the dummy variable \emph{Landscapes worth preserving} from spatial data aggregating existing regional planning programmes as provided by \cite{LandNiederoesterreich2015}.
+
+\subsubsection{Land cover}
+The state's environmental wind power assessment \citep{Knoll2014} highlights the particular ecological value of pastures and forests.
+Consequently, we use the Corine Land Cover 2012 data from the Austrian environmental agency \citep{UBA2018b} and extract the land-use category `pastures' (CLC category 231) to construct the dummy variable \emph{Pastures} equal to 1 for each pixel within or touching the corresponding polygons.
+We use Copernicus HRL Forests 2015 data from the Austrian environmental agency \citep{UBA2018a} to represent forests.
+Specifically, we use the attributes \emph{Tree cover density} (level of tree cover density in a range from \SIrange{0}{100}{\percent}) and construct the dummies \emph{Dominant leaf type: broad leaved} and \emph{Dominant leaf type: coniferous} from the provided categorical variable `dominant leaf type' (categories $0$: not tree covered, $1$: broadleaved trees, $2$: coniferous trees).
+In addition, we also generate the interactions between tree cover density and the leaf-type dummies.
+We up-sample all data from the original \SI{20}{\metre} resolution to our spatial resolution of approximately \SI{200}{\metre}.
+
+\cite{McKenna2022} identify water bodies as a relevant criterion in assessing geographical onshore wind power potentials. 
+In line with this finding, we use geodata on surface waters (stagnant and running) provided by Austria's federal environmental agency \citep{UBA2022b, UBA2022a} to construct the dummy variable \emph{Water bodies} equal to 1 if a pixel touches a surface water polygon and 0 otherwise.
+
+\subsubsection{Electricity grid infrastructure}
+Austria's \cite{BEV2023a} publishes a digital landscape model, including the built environment.
+The dataset contains geo-references for power supply lines ranging from \SIrange[]{380}{110}{\kilo\volt}.
+Based on these data, we construct the set of all pixels where the electricity grid infrastructure is located. 
+Finally, we compute the distance between each pixel's centre and the centre of the nearest pixel where the grid infrastructure is located. 
+The corresponding variable is named \emph{d(Grid infrastructure)}.
+
+\subsubsection{Pre-Existing wind turbines}
+To locate wind turbines existing at the time of Lower Austria's zoning decision, we combine wind turbine locations from \cite{IGWindkraft2023} and the \cite{BEV2023} with our own desk research.
+Pixels where turbines existed in 2014 are attributed by $1$, all other pixels by $0$.
+Subsequently, we compute the distance between each pixel's centre and the centre of the nearest pixel with an existing wind turbine.
+We refer to the corresponding distance measure as \emph{d(Pre-existing wind turbines)}.
+
+\subsubsection{Network of high-level roads}
+Due to the size of modern wind turbines, the accessibility of a (potential) turbine site for heavy-duty vehicles is an important determinant of investment cost.
+Hence, we include the distance to the high-level street network to proxy for site accessibility.
+The Graph Integration Platform (GIP) provides geodata for Austria's transport infrastructure \citepalias{GIP2023}.
+We extract the high-ranking street network comprising highways and secondary (provincial) roads (GIP street categories A, S, B, and L) and compute the distance of each pixel to the nearest high-level road. 
+The corresponding variable is named \emph{d(High-level roads)}.
+
+\subsubsection{Topography}
+As a mountainous country, the terrain in Austria can be steep, affecting the accessibility of the terrain and wind turbine investment cost.
+Therefore, we retrieved a digital elevation model with a resolution of \SI{10}{\metre} from \cite{KaGIS2022}.
+We interpolate elevation data to our \SI{200}{\metre} raster to generate the variable \emph{Elevation}.
+In addition, we compute terrain slope on the original grid size. 
+Subsequently, we use the interpolation to our \SI{200}{\metre} grid as the \emph{Terrain slope} variable.
+
+\subsubsection{Tourism}
+Tourism interests were considered in Lower Austria's wind power zoning decision. 
+To approximate the touristic value of a region in spatial resolution, we rely on the number of annual overnight stays per municipality.
+The corresponding data for the year 2018 was kindly provided upon personal request by \cite{StatistikAustria2022}.
+We assigned the total annual overnight stays to each pixel within the corresponding municipality's territory and named the resulting variable \emph{Touristic overnights}.
+
+\section{Results} \label{sec:results}
+In the following subsection~\ref{subsec:estimates}, we present estimates from discrete choice models used to uncover the social planner's preferences revealed in the Lower Austrian zoning decision. 
+Subsequently, we compute the social planner's implied willingness to pay to avoid wind turbines at locations with given spatial attributes (see subsection \ref{subsec:wtp}) and derive the corresponding wind turbine allocation, which minimises the local social cost of wind power in subsection \ref{subsec:alloc}.
+Finally, we construct a quantity-cost curve for wind power in Lower Austria based on the implied valuation of spatial attributes in subsection~\ref{subsec:cost-curve}.
+
+\subsection{Discrete choice estimates} \label{subsec:estimates}
+As described in section~\ref{subsec:methods}, we repeatedly generate pairwise comparisons between the \num{9706} zoned locations and an equal number of randomly selected non-zoned locations to estimate the parameters $\alpha$ and $\beta$.
+Table \ref{tab:logitmodel} reports the mean parameter estimates from \num{2500} iterations implemented with the \emph{logitr}-package by \cite{Helveston2023}.
+
+% include table with discrete choice estimates
+\input{dc_estimates}
+
+The initially specified \emph{full} model closely leans on the description of Lower Austria's wind power zoning process provided by \cite{Knoll2014}, extended by attributes frequently used in the relevant literature \citep[see][for a review]{McKenna2022}.
+Please refer to sections~\ref{sec:desclaut} and \ref{subsec:data} for further details.
+All data are resolved to the Global Wind Atlas 3 resolution, an approximate \SI{200}{\metre} grid representing Lower Austria's area in \num{480835} pixels.
+Table \ref{tab:logitmodel} provides the full model specifications estimates for the coefficients $\alpha$ and $\beta$ and model statistics.
+
+The estimated coefficients represent the social preference order most consistent with the observed wind power zoning.
+Consequently, the estimated coefficients are unique only up to a scalar transformation.
+Hence, we can interpret the estimates' significance, sign and relative magnitude but not their level.
+
+Most variables are significantly different from zero at the \SI{1}{\percent} level.
+Exceptions are restricted military areas, water bodies and the distance to high-level roads (not significantly different from zero), landscapes worth preserving and the interaction of important bird areas and protected areas (significant at the \SI{5}{\percent}-level) as well as the dominant leaf type "broad-leafed" (significant at the \SI{10}{\percent}-level).
+Moreover, the signs of all significant variables, except for water bodies and the distance to greenland zonings, align with prior expectations.
+As expected, a positive coefficient on the distance to residential buildings indicates a preference for wind turbines further away from residential dwellings.
+On the other hand, the negative coefficient on the distance to grid infrastructure signals a preference for wind turbine sites closer to the electricity grid.
+Likewise, a potential wind turbine site is preferred if it is situated outside of flight safety zones, protected areas, important bird areas, application areas of the alpine convention, pastures, building land, restricted military areas, and landscapes worthy of preservation.
+The variables for tree cover density and dominant leaf type as well as their interaction are best interpreted jointly. 
+According to these estimates, wind turbine sites are preferred in areas less densely covered by trees.
+Moreover, wind turbine sites in predominantly coniferous forests are preferred over sites in broadleaved woodlands.
+
+Subsequently, we specify a \emph{parsimonious} model, which excludes the variables \emph{Water bodies} and \emph{d(Greenland zoning)}, which do not align with prior expectations.
+Table \ref{tab:logitmodel} reports the corresponding estimates.
+
+Overall, estimated coefficients are robust to the specification change, with changes well below \SI{10}{\percent} for almost all coefficients.
+Notable exceptions are the coefficient on Important Bird Areas (changing by \SI{10.3}{\percent} and the (insignificant) coefficient on Restricted Military Areas, which more than doubles, even though the change remains well below one standard deviation.
+In addition, we also find the models to be robust to changes in the computation of quasi-LCOE. 
+\ref{app:robust} provides further details.
+
+\subsection{Implied local social cost of wind turbines} \label{subsec:wtp}
+Based on the \emph{parsimonious} model, we compute the social planner's valuation of spatial attributes implied by the observed Lower Austrian wind power zoning for each location in Lower Austria, as described in Section \ref{subsec:methods}.
+
+% include table with willingness-to-pay for spatial attributes
+\input{wtp}
+
+Accordingly, Table~\ref{tab:wtp} presents the implied willingness-to-pay (WTP) for a marginal (one unit) change in spatial attributes derived from the estimates presented in Table~\ref{tab:logitmodel} according to the method laid out in Section~\ref{subsec:methods}.
+Any positive WTP implies an increase in local social cost when a wind turbine is realised at a location characterised by the corresponding attribute. 
+For example, we estimate the social cost to increase, ceteris paribus, by \SI{11.36}[\euro]{\per\mega\watt\per\hour} if a wind turbine site is moved \SI{1}{\kilo\metre} closer to a residential building.
+Likewise, we estimate a ceteris paribus increase in the social cost by \SI{13.22}[\euro]{\per\mega\watt\per\hour} if a wind turbine site is allowed in a protected area. 
+If the protected area is also an important bird area, social cost increases to \SI{21.74}[\euro]{\per\mega\watt\per\hour}.
+Consequently, a social planner minimising the social cost would prefer to avoid wind turbines, for example, in a protected area if an alternative location with lower local social cost is available.
+
+As we derive the \emph{marginal} valuation of attributes from our estimated preference representation (see Table~\ref{tab:logitmodel}), the resulting willingness-to-pay (WTP) is unique only up to a constant.
+To anchor our local social cost estimates, we first compute the local social cost (excluding quasi-LCOE) at all locations by multiplying our estimated WTPs with the observed spatial characteristics of each location and summing over all characteristics.
+Subsequently, we centre the distribution of local social cost such that the lowest cost site's total local social cost, i.e.\ quasi-LCOE plus local social cost, is equal to its quasi-LCOE.
+This has the advantage of avoiding negative total local social costs (including quasi-LCOE), which could be interpreted as implying an appreciation of a location by deploying a wind turbine.
+Accordingly, the absolute level of estimated local social cost is best understood relative to the least-cost location.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.9\textwidth]{dist_soco_cost_2014_base}
+    \caption{Distribution of quasi-LCOE, local social cost, and total local social cost}
+    \label{fig:dist-cost}
+\end{figure}
+
+The distribution of the minimal quasi-levelized cost of electricity over the assessed pixels in Lower Austria (see Figure~\ref{fig:dist-cost}) is strongly peaked with the median at \SI{44.72}[\euro]{\per\mega\watt\per\hour}, positively skewed and leptokurtic, as there are very few pixels with quasi-LCOE reaching up to a maximum of \SI{882.98}[\euro]{\per\mega\watt\per\hour} in our sample.
+In contrast, the distribution of estimated local social costs is flatter, indicating a larger spatial heterogeneity of local social costs compared to quasi-LCOE.
+Relative to the least-cost site, the mean local social cost of \SI{97.23}[\euro]{\per\mega\watt\per\hour} is more than twice as high as the mean quasi-LCOE. 
+As illustrated by Figure~\ref{fig:loco-lcoe}, the spatial distribution of local social cost differs substantially from the spatial distribution of quasi-LCOE, .
+
+\begin{figure}[t]
+    \centering
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{map_soco_cost_2014_base}
+        \caption{Local social cost}
+        \label{fig:map-social-cost}
+    \end{subfigure}%
+    ~ 
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{map_lcoe_cost_2014_base.png}
+        \caption{Quasi-Levelized Cost of Electricity}
+        \label{fig:map-lcoe}
+    \end{subfigure}
+    \caption{Spatial distribution of local social cost (left panel) and Quasi-LCOE (right panel)}
+    \label{fig:loco-lcoe}
+\end{figure}
+
+To analyse the contribution of individual spatial attributes to the local social cost depicted in Figure~\ref{fig:map-social-cost}, we compute attribute-specific valuations (i.e. estimated valuation times observed spatial attribute) for all continuously measured spatial attributes.\footnote{The valuation of discrete spatial attributes can be read directly from Table~\ref{tab:wtp}.}
+
+The distance to residential buildings is estimated to have the largest effect on local social cost, exceeding \SI{40}[\euro]{\per\mega\watt\per\hour} at the most remote locations.
+The distance to wind turbines deployed before the zoning decision adds up to \SI{30}[\euro]{\per\mega\watt\per\hour} to the local social cost at locations far from pre-existing wind turbines.
+Furthermore, the local social cost can exceed \SI{15}[\euro]{\per\mega\watt\per\hour} at strongly inclined locations and \SI{10}[\euro]{\per\mega\watt\per\hour} at the highest altitudes in Lower Austria.
+Effects of similar magnitude are estimated for locations with the highest touristic overnights and the largest distances to non-residential building land, buildings in the greenland worth preserving, and the electricity grid.
+
+\subsection{Optimal spatial allocation of wind turbines} \label{subsec:alloc}
+Lower Austria aims to generate \SI{8}{\tera\watt\hour} of electricity from wind power annually by 2030 \citep{ENU2023}.
+To derive the optimal spatial allocation of wind turbines while respecting a minimum distance of approximately \SI{600}{\metre} between wind turbines, we solve a simple mixed-integer program as described in \ref{app:opt-loc-prob}.
+In line with the state's policy goals, we determine wind turbine sites sufficient to reach the electricity generation target while minimising either (a) the total local social cost or (b) the quasi-LCOE of wind turbines, irrespective of actual existing wind turbines.
+%
+\begin{figure}
+    \centering
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \includegraphics[trim=3.5cm 0 3.5cm 0, clip, width=\textwidth]{map_turbines_soco.png}
+        \caption{Total local social cost minimizing allocation}
+        \label{fig:optcost-a-soco}
+    \end{subfigure}%
+    ~ 
+    \begin{subfigure}[t]{0.5\textwidth}
+        \centering
+        \includegraphics[trim=3.5cm 0 3.5cm 0, clip, width=\textwidth]{map_turbines_lcoe.png}
+        \caption{Quasi-LCOE minimizing allocation}
+        \label{fig:optcost-b-lcoe}
+    \end{subfigure}
+    \caption{Cost optimal allocations of wind turbines in Lower Austria}
+    \label{fig:optcost}
+\end{figure}
+%
+Figure~\ref{fig:optcost} compares the arising spatial allocations.
+While sites with the lowest quasi-LCOE are predominantly located in the alpine, southern part of Lower Austria (see Figure~\ref{fig:optcost-b-lcoe}), locations minimising the total local social cost differ substantially. 
+They are found mainly in the eastern and northern parts of Lower Austria (see Figure~\ref{fig:optcost-a-soco}).
+In addition to the spatial wind turbine allocations, we also compute the corresponding expected annual quasi-LCOE and local social cost of both spatial wind turbine allocations, evaluated at the location of deployed wind turbines.
+However, given our methodology, local social cost are not uniquely determined and the results reported in Table \ref{tab:compare-allocations} rely on the most conservative, plausible distribution of local social cost  (see subsection \ref{subsec:wtp}).
+%
+\begin{ThreePartTable}
+\renewcommand\TPTminimum{\textwidth}
+\begin{TableNotes}
+    \footnotesize
+    \item[$\ast$] excluding location-dependent balance-of-service costs
+\end{TableNotes}
+    \begin{longtable}{l c c c c}
+    \caption{Cost comparison of wind turbine allocations} \label{tab:compare-allocations}\\
+        \toprule
+         \parbox[c][1.2cm][c]{0.15 \textwidth}{\textbf{Objective}} 
+         & \parbox[c][1.2cm][c]{0.15 \textwidth}{\centering\textbf{Wind\\ Turbines}} 
+         & \parbox[c][1.2cm][c]{0.15 \textwidth}{\centering\textbf{Local Social Cost}} 
+         & \parbox[c][1.2cm][c]{0.15 \textwidth}{\centering\textbf{Private\\Cost\tnote{$\ast$}}} 
+         & \parbox[c][1.2cm][c]{0.15 \textwidth}{\centering \textbf{Total Local Social Cost}} \\
+        & [count]           
+        & [\si{\EUR\million\per\year}] 
+        & [\si{\EUR\million\per\year}] 
+        & [\si{\EUR\million\per\year}] \\
+        \midrule
+        \endhead
+
+        \bottomrule
+        \insertTableNotes
+        \endlastfoot
+        % table contents
+    Private Cost\tnote{$\ast$}  & 1140   & 965.0   & 229.6   & 1194.5 \\
+    Social Cost                 & 1566   & 701.4   & 318.7   & 1020.1 \\
+    \end{longtable}
+\end{ThreePartTable}
+
+Allocating wind turbines to minimise the private cost (excluding balance-of-service cost) of wind power could save electricity generation costs equal to \SI{89.1}[\euro]{\million\per\year} compared to an allocation minimising the local social cost.
+However, the private cost-minimising allocation comes at a higher local social cost of \SI{263.6}[\euro]{\million\per\year}.
+Hence, the wind power zoning enhances total social welfare by an estimated \SI{174.4}[\euro]{\million\per\year} (neglecting the power system effects of the changing wind turbine allocation).
+At the same time, the gains from the wind power zoning are unevenly distributed.
+While wind turbine owners have to bear an increase in private costs, the wider population benefits from wind power zoning.
+However, the benefits to the population are spatially unevenly distributed.
+Inhabitants of the southern, wind resource-rich areas benefit the most, while people residing in designated wind power regions, particularly in the east-north-eastern parts of the state (see Figure~\ref{fig:optcost-a-soco}), are set to experience the most substantial zoning impacts.
+
+\subsection{Local social cost curve for wind power} \label{subsec:cost-curve}
+To uncover the relation between marginal local social cost and expected annual electricity generation from wind power, we solve the mixed integer program described in \ref{app:opt-loc-prob}.
+To cover a wide range of possible wind power deployment scenarios, we site a number of turbines (\num{13400}) sufficient to generate approximately \SI{60}{\tera\watt\hour\per\year} (absent any wake effects).
+This amount of annual electricity generation suffices to meet wind power expansion in recent scenarios of net zero emissions in Austria by 2040 \citep{NetZero2040} and is over seven times the politically targeted wind power generation for Lower Austria in 2030.
+Figure~\ref{fig:cost-curve} displays the corresponding cost-supply curve of wind power in Lower Austria. 
+%
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{cost_curve.png}
+    \caption{Cost-Supply Curve of Wind Power in Lower Austria}
+    \label{fig:cost-curve}
+\end{figure}
+
+The marginal local social cost of wind power is quickly increasing to about \SI{90}[\euro]{\per\mega\watt\per\hour} as the annual electricity generation is approaching the current level of around \SI{4}{\tera\watt\hour\per\year}.
+The average local social cost at this generation level amounts to \SI{82.85}[\euro]{\per\mega\watt\per\hour}, of which on average \SI{40.28}[\euro]{\per\mega\watt\per\hour} or \SI{48.6}{\percent} are private costs of wind power (excluding local balance-of-service costs).
+A further expansion of wind power towards the policy target of \SI{8}{\tera\watt\hour\per\year} raises the marginal local social cost on average by around \SI{1.39}[\euro]{\per\mega\watt\per\hour} for each \si{\tera\watt\hour} of expected annual generation added.
+The marginal local social cost of wind power increases by approximately \SI{0.50}[\euro]{\per\mega\watt\per\hour} when the wind power expansions surpass \SI{20}{\tera\watt\hour\per\year}.
+At these levels of wind power expansion, the local social cost of wind power accounts for approximately \SI{55}{\percent} of total local social cost.
+However, due to the intricacies of assigning specific spatial attributes to cost categories, we refrain from an exact quantification of disamenity or ecological cost.
+Nevertheless, our results suggest that these external costs are ascribed considerable value in the political process leading to Lower Austria's wind power zoning.
+
+\section{Discussion}\label{sec:discussion}
+Zoning space for wind power commonly relies on a set of selected spatial attributes over which corresponding preferences are defined.
+By combining preferences with attributes, a zoning can be derived.
+We have inverted this sequence to infer preferences from an existing zoning based on a set of spatial attributes.
+Based on these preferences, we derived an implicit valuation of spatial attributes, which allowed us to estimate the local social cost of wind power, including disamenity and ecological costs.
+However, the implied preferences and the corresponding valuation do not result from an aggregation of individual preferences but from the political process leading up to Lower Austria's wind power zoning.
+Consequently, our analysis follows the planning principles chosen by the zoning authorities.
+These planning principles may not be universally accepted.
+
+Wind power zoning in other regions or states differs in the spatial attributes considered in the zoning decision. Such differences will affect the estimated local social cost.
+Furthermore, relevant effects may be assessed differently in different zoning decisions. In Lower Austria, for example, only the minimal distance between a wind turbine and a residential building is considered. Implicitly, this methodological choice seeks to minimise the loss of the single, most affected individual.
+In contrast to the Rawlsian methodology adopted in Lower Austria, much of the literature follows utilitarian principles, considering effects on all residential dwellings within a given radius around a wind turbine \citep{Ruhnau2022, Lehmann2023, Grimsrud2023}.
+
+Finally, our research design also introduces some limitations.
+Valuing spatial attributes through the trade-off with quasi-LCOE results in cost estimates expressed relative to energy generation. 
+Thus, potential fixed local social costs per turbine are not captured adequately.
+Moreover, due to the marginal valuation, our local social cost estimates are uniquely determined only up to a constant.
+In consequence, absent additional assumptions, the local social cost estimates are meaningful only relative to each other, and their absolute level is a matter of the chosen reference level.
+
+In light of these caveats, and given the diverse measures reported in the literature, we refrain from direct comparisons of our estimates to the literature.
+On a more general level, however, we find local social cost to play an essential role in the siting of wind turbines.
+The evidence from Lower Austria rejects the hypothesis that wind turbines are deployed at locations with the lowest (quasi-) LCOE.
+This is consistent with \cite{Hedenus2022}, who study historical wind turbine deployment and find no evidence of wind turbines being installed predominantly at the windiest sites.\\
+If an `appreciation' of locations through wind turbines is ruled out, our results also indicate a considerable role of the local social cost in the overall social cost of wind turbines.
+Local social costs exceed location-independent quasi-LCOE substantially at virtually all locations, underlining the relevance of the local social cost in political decision-making.
+Our research makes such politically perceived costs accessible for further analysis, for example, when studying power systems.
+
+Perhaps even more importantly, studying local social costs opens up an alternative to conventional assessments of renewable potentials.
+Using an assessment of local social cost allows for respecting spatial trade-offs and avoids any reliance on layered dichotomies of the (in)feasible.
+Moreover, this conceptual approach allows for equal treatment of equal spatial properties.
+As such, the concept of local social cost is an improvement over more simplistic ideas of `spatial justice', such as spatial equidistribution of renewable energy technologies (in selected suitable areas), which do not meet this common standard of fairness.
+
+\section{Conclusions}\label{sec:conclusio}
+We have shown that the local social cost of wind power is relevant, at least to policymakers. 
+Thus, the local social cost deserves our attention, as its applications are manifold.
+The local social cost can inform power system models when choosing optimal deployment levels. 
+Moreover, local social costs can also inform subsequent location choices. 
+However, results depend on implicit preferences and considered spatial attributes. 
+These features may not be identical across space, time, and technologies. 
+Thus, further research to gain insight into potential divergences is warranted.
+
+Nevertheless, our research shows that strict limits on deploying renewable energy technologies are an artefact of an overly narrow edifice of ideas.
+Ultimately, the potentials for deploying renewable energy technologies are not firmly constrained on scales relevant for policy making. 
+Instead, renewables deployment burdens humans and the environment, which needs to be understood and weighed against the benefits of renewables deployment to arrive at optimal decisions.
+
+\section*{Acknowledgements}
+\emergencystretch 3em
+The authors gratefully acknowledge funding by the European Research Council (“reFUEL” ERC-2017-STG 758149) and the Austrian Klimafonds as part of the 13th Austrian Climate Research Programme (ACRP), 
+Grant number KR20AC0K18182.
+We would like to thank Christa Schischeg (Statistik Austria), Matthias Schmidt (Birdlife Austria) and Marcel Katzlinger for their kind provision of support and data.
+Sebastian Wehrle thanks Lorenz Reitbauer for helpful discussions.
+
+\newpage
+\bibliography{scow}
+\bibliographystyle{elsarticle-harv}
+
+% % % % % % APPENDIX % % % % % % %
+\newpage
+\appendix
+\section{Spatial allocation of wind turbines} \label{app:opt-loc-prob}
+Consider an area partitioned in pixels indexed by coordinates $x$ and $y$. 
+If a wind turbine is deployed at location $x,y$, the binary variable $z_{x,y}$ equals $1$ and zero otherwise.
+The local social cost of deploying a wind turbine at pixel $x,y$ amounts to $u_{x,y}$.
+Finding the optimal spatial allocation of $N$ wind turbines then amounts to minimizing the total local social cost in \eqref{eq:obj} subject to \eqref{eq:numturb} requiring a minimum amount of turbines to be sited at a minimal distance as in \eqref{eq:mindist}.
+
+\begin{align}
+%\begin{split}
+    \min \; S =& \sum_{x, y} s_{x,y} \, z_{x,y} \label{eq:obj}\\
+    \shortintertext{s.t.}
+    \sum_{x,y} z_{x,y} \geq& N \label{eq:numturb}\\
+    z_{x+i, y+j} \leq& 1-z_{x, y}, \quad \textrm{with } -d \leq i, \, j \leq d \textrm{ and } i,j\neq 0 \label{eq:mindist}
+%\end{split}
+\end{align}
+
+As the full optimization problem leads to very long runtimes on conventional hardware, we partition Lower Austria into six strips and solve the optimisation problem separately for each strip.
+We set $N$ proportional to potential wind turbine locations when minimum distances are respected, but not lower than \num{1000} and not higher than \num{10000} turbines.
+Subsequently, we reassemble the strips and compute wind turbine distances between the strips' border regions. 
+Turbines within three pixels in vertical and horizontal direction are eliminated. 
+In some rare cases, minimum distances at the strips' borders may nevertheless violate minimum distance requirements.
+
+\section{Marginal rate of substitution between spatial attributes} \label{app:marginal-rate-substitution}
+To uncover the social planner's willingness to pay for avoiding wind turbines at locations with given spatial attributes, we compute the total differential of the general local welfare function $u(x_1, ..., x_n, c)$.
+\begin{align*}
+    d u = \frac{\partial u}{\partial c} d c + \sum_{i}^{n} \frac{\partial u}{\partial x_i} d x_i
+\end{align*}
+Holding local welfare constant, i.e.\ $d u = 0$ we get
+\begin{align*}
+    - \frac{\partial u}{\partial c} d c = \sum_{i} \frac{\partial u}{\partial x_i} d x_i
+\end{align*}
+Dividing by the change in the spatial attribute of interest $d x_i$, with $x_i \neq x_j$ we get
+\begin{align*}
+    - \frac{\partial u}{\partial c} \frac{d c}{d x_i} &= \frac{\partial u}{\partial x_i} + \sum_{i \neq j} \frac{\partial u}{\partial x_j} \frac{d x_j}{d x_i} \\
+    \frac{d c}{d x_i} &= -\frac{\frac{\partial u}{\partial x_i}}{\frac{\partial u}{\partial c}} - \sum_{j \neq i} \frac{\frac{\partial u}{\partial x_j}}{\frac{\partial u}{\partial c}} \frac{d x_j}{d x_i}
+\end{align*}
+If $dx_j / dx_i = 0$, that is spatial characteristics are independent of each other, above equation reduces to
+\begin{align*}
+    \frac{d c}{d x_i} &= -\frac{\partial u}{\partial x_i} / \frac{\partial u}{\partial c}
+\end{align*}
+As local welfare is linearly dependent on estimated coefficients (cf. equation \eqref{eq:socpref}), we have $\partial u / \partial c = \alpha$ and $\partial u / \partial x_i = \beta_i$.
+Hence, the social planner's implied willingness to pay for spatial attribute $i$ equals
+\begin{align}
+    \frac{d c}{dx_i} = - \frac{\beta_i}{\alpha}
+\end{align}
+
+\section{Wind resource assessment}\label{app:wind-resource-assessment}
+
+\subsection{Capacity factors} \label{app:capacity-factors}
+We use the Global Wind Atlas 3 (GWA 3) \citep{DTU2022} to represent the meteorological conditions for wind power generation. 
+The Global Wind Atlas provides the parameters of a Weibull distribution of wind speeds and air density at \SI{50}{\metre}, \SI{100}{\metre} and \SI{150}{\metre} heights, as well as terrain elevation gridded at approximately \SI{200}{\metre} resolution.
+We approximate air density on the basis of elevation data.
+To infer terrain roughness, we infer the roughness correction factor $\alpha$ from the difference in mean wind speeds \SI{50}{\metre} and \SI{100}{\metre} above ground using the wind power law.
+\begin{align}
+    \alpha = \frac{\ln{u_{100}} - \ln{u_{50}}}{\ln{100} - \ln{50}}
+\end{align}
+where $u_h = A_h \Gamma(1/(k_h + 1))$.
+Subsequently, we use the spatially resolved $A$ and $k$-parameters of the Weibull distribution of wind speeds to compute the probability density of wind speeds according to
+\begin{align}
+    f(z,A,k) = \frac{k}{A} \cdot \frac{z}{A}^{k-1} \cdot \mathrm{e}^{-\frac{z}{A}^{k}}
+\end{align}
+where wind speed $z$ is in the domain $[0, 30]$ \si{\metre \per \sec}.
+We compute the distribution of wind speeds at hub height, accounting for terrain roughness and air density and subsequently fold the distribution with the power curves of \num{37} wind  turbine models representing the state-of-the-art at the time of the zoning decision to arrive at expected capacity factors. 
+To account for downtimes and losses and a known tendency of GWA 3 to overestimate wind resource quality in Austria, we follow \cite{Wehrle2021} and reduce the capacity factors by \SI{28.8}{\percent}.
+We retrieved the corresponding power curves from Renewable Ninja's Virtual Wind Farm model \citep{Staffell2016} and the \cite{oep2019} wind turbine library.
+
+\subsection{Cost of wind power}\label{app:qlcoe}
+We use the computed capacity factors to approximate the part of the levelized cost of electricity which is location-independent.
+Following \cite{Eberle2019}, we assume that the cost of the actual turbine (comprising of rotor, nacelle, and tower) is location-independent and accounts for \SI{70}{\percent} of total wind turbine investment cost $I_0$.\footnote{The valuation of location-dependent cost factor is estimated in our model and, therefore, not included here.}
+To estimate the investment cost of wind turbine models, we use the wind turbine cost model by \cite{Rinne2018}.
+However, as \cite{Kloeckl2022} showed, this cost model can produce implausible cost estimates for specific turbine models.
+Accordingly, we made sure that our used turbine models are within the model's plausible domain.
+We compute the corresponding `quasi-levelized cost of electricity' (qLCOE) as
+\begin{align}
+    qLCOE = \frac{I_0 + \sum_{t=1}^{T} \frac{M_t}{(1+i)^t}}{\sum_{t=1}^T \frac{E_t}{(1+i)^t}}
+\end{align}
+where $T$ is wind turbine lifetime, $M_t$ are its fixed and variable annual operation and maintenance costs, and $E_t$ is the electricity generated in a year.
+
+Turbine lifetime is assumed to be \num{25} years, while operating costs are \SI{8}[\euro]{\per\mega\watt\per\hour} (variable) and \SI{20}[\euro]{\per\kilo\watt}, respectively \citep{Kost2021}.
+Future electricity generation and operation and maintenance costs are discounted at a \SI{4}{\percent} annual rate.
+We compute qLCOE for \num{37} wind turbine models and select the least-cost wind turbine model for each location.
+Subsequently, we construct a spatial dataset of minimal qLCOE which we use in further analysis.
+The set of least-cost turbines models comprises of the Enercon turbines E115-\SI{3}{\mega\watt}, E101-\SI{3.05}{\mega\watt}, E82-\SI{3}{\mega\watt}), and the E40-\SI{0.5}{\mega\watt}, and the Vestas models V100-\SI{1.8}{\mega\watt} and V100-\SI{2}{\mega\watt}.
+However, the E115 and E40 turbine models are optimal only at very few locations, so that the E82, V100 and E101 models combined are the least-cost option for \SI{99.9}{\percent} of all locations.
+
+\section{Sensitivity to changes in the wind turbine technology} \label{app:robust}
+To test the sensitivity of results with respect to changes in wind turbine technology and, consequently, capacity factors, we update our power curve database with the wind turbine models Vestas V162-\SI{7.2}{\mega\watt}, V162-\SI{5.6}{\mega\watt}, V150-\SI{4.2}{\mega\watt}, V136-\SI{4.2}{\mega\watt} and Enercon E160-\SI{5.56}{\mega\watt}, E138-\SI{3.5}{\mega\watt}, E126-\SI{3.5}{\mega\watt}.
+Subsequently, we repeat all computations, this time including the power curves of contemporary wind turbines.
+We use the resulting spatial dataset of least cost quasi-LCOE, predominantly comprising the wind turbine models Vestas V150-\SI{4.2}{\mega\watt} (\SI{94.5}{\percent} of locations) and Enercon E82-\SI{3}{\mega\watt} (\SI{5.4}{\percent} of locations), and very few Enercon E160-\SI{5.56}{\mega\watt}, E138-\SI{3.5}{\mega\watt}, E40-\SI{0.5}{\mega\watt} and the Vestas V100-\SI{1.8}{\mega\watt} (together \SI{0.04}{\percent} of locations) to re-estimate the \emph{parsimonious} discrete choice model. 
+
+\input{tab_sensitivity}
+
+Estimated coefficients for most spatial attributes are fairly robust when compared to the \emph{parsimonious} model specification.
+Changes in the implicitly valuation of spatial attributes are mostly driven by a decline in the coefficient on Quasi-LCOE from \num{-0.14649} to \num{-0.20114}.
+This is consistent with a decline in the specific power and in increase in hub height of optimally deployed wind turbines, which reduces quasi-LCOE and thereby the opportunity cost of keeping locations free from wind turbines.
+Figure \ref{fig:dist-sens} depicts the corresponding distributions of Quasi-LCOE, local social cost and total local social cost.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.9\textwidth]{dist_soco_cost_2016_base.png}
+    \caption{Distribution of Quasi-LCOE, local social cost, and total local social cost with state-of-the-art wind turbine models}
+    \label{fig:dist-sens}
+\end{figure}
+\end{document}

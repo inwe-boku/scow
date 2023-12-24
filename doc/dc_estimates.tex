@@ -1,0 +1,52 @@
+\begin{ThreePartTable}
+ \renewcommand\TPTminimum{\textwidth}
+    \begin{TableNotes}
+        \footnotesize
+        \item standard deviations in parentheses; $^{***}$, $^{**}$, $^{*}$ indicate significance at the \SI{1}{\percent}, \SI{5}{\percent}, and \SI{10}{\percent} levels, respectively
+        \item $d()$ indicates distance in km
+    \end{TableNotes}
+        
+    \begin{longtable}{l c c}
+        \caption{Estimated coefficients from iterated discrete choice of zoned locations} \label{tab:logitmodel}\\
+        \toprule
+         \textbf{Attribute}                           & \multicolumn{2}{c}{\textbf{Model specification}}\\ 
+         & \emph{full}  & \emph{parsimonious}\\
+        \midrule
+        \endhead
+        \midrule
+        \multicolumn{3}{c}{\textit{continued on next page}} 
+        \endfoot
+        \bottomrule
+        \insertTableNotes
+        \endlastfoot
+        % table contents
+         Airports                                     & $\underset{(0.36230)}{-2.53286^{***}}$ & $\underset{(0.36666)}{-2.53318^{***}}$ \\
+         Alpine Convention                            & $\underset{(0.32539)}{-3.81792^{***}}$ & $\underset{(0.32927)}{-3.84120^{***}}$ \\
+         Protected areas                              & $\underset{(0.20993)}{-1.93558^{***}}$ & $\underset{(0.21031)}{-1.93673^{***}}$ \\
+         Important bird areas                         & $\underset{(0.15559)}{-0.76062^{***}}$ & $\underset{(0.15604)}{-0.68762^{***}}$ \\
+         Important bird area $\times$ Protected areas & $\underset{(0.30752)}{-0.53947^{**}}$  & $\underset{(0.31058)}{-0.56036^{**}}$  \\
+         Landscapes worth preserving                  & $\underset{(0.21420)}{-0.41445^{**}}$  & $\underset{(0.21039)}{-0.43273}^{**}$  \\
+         Pastures                                     & $\underset{(0.35984)}{-1.52269^{***}}$ & $\underset{(0.35951)}{-1.45719^{***}}$ \\
+         Restricted military areas                    & $\underset{(0.21105)}{-0.07849^{}}$    & $\underset{(0.21272)}{-0.17001^{}}$    \\
+         Water bodies                                 & $\underset{(0.24266)}{0.29462^{}}$     &  -- \\
+         Dominant leaf type: broad leafed             & $\underset{(1.22932)}{1.99697^{*}}$   & $\underset{(1.21324)}{1.96388^{*}}$     \\
+         Dominant leaf type: coniferous               & $\underset{(1.95798)}{7.79360^{***}}$  & $\underset{(1.90803)}{7.75373^{***}}$  \\
+         Tree cover density                           & $\underset{(0.22641)}{1.06568^{***}}$  & $\underset{(0.22257)}{1.12787^{***}}$ \\
+         Tree cover density $\times$ broad leafed     & $\underset{(1.43844)}{-4.10065^{***}}$ & $\underset{(1.42141)}{-4.08459}^{***}$ \\
+         Tree cover density $\times$ coniferous       & $\underset{(2.29767)}{-8.49587^{***}}$ & $\underset{(2.24286)}{-8.46759}^{***}$ \\
+         d(Other building land)                       & $\underset{(0.07143)}{0.36967^{***}}$  & $\underset{(0.07293)}{0.35193^{***}}$ \\
+         d(Grid infrastructure)                       & $\underset{(0.01454)}{-0.08319^{***}}$ & $\underset{(0.01470)}{-0.08992^{***}}$ \\
+         d(Greenland buildings worth preserving)      & $\underset{(0.06323)}{0.53977^{***}}$  & $\underset{(0.05931)}{0.50025^{***}}$  \\
+         d(Residential buildings)                     & $\underset{(0.08948)}{1.67577^{***}}$  & $\underset{(0.08966)}{1.66397^{***}}$  \\
+         d(Pre-existing wind turbines)                & $\underset{(0.00895)}{-0.13590^{***}}$ & $\underset{(0.00869)}{-0.13751^{***}}$ \\
+         d(Greenland zoning)                          & $\underset{(0.02299)}{-0.07179^{***}}$ &  --\\
+         d(High-level roads)                          & $\underset{(0.08324)}{-0.04969}^{}$    & $\underset{(0.08150)}{-0.04707}$ \\
+         Elevation                                    & $\underset{(0.00031)}{-0.00146^{***}}$ & $\underset{(0.00032)}{-0.00148^{***}}$ \\
+         Terrain slope                                & $\underset{(0.01016)}{-0.07189^{***}}$ & $\underset{(0.01012)}{-0.07170^{***}}$ \\
+         Touristic overnights                         & $\underset{(0.00187)}{-0.01258^{***}}$ & $\underset{(0.00189)}{-0.01247^{***}}$ \\
+         Quasi-LCOE                                   & $\underset{(0.00997)}{-0.14507^{***}}$ & $\underset{(0.01033)}{-0.14649^{***}}$ \\ \midrule
+         Log-Likelihood                               & -1035.7                      & -1039.2    \\
+         AIC                                          & 2121.4                       & 2124.5   \\
+         Adj. R$^2$                                   & 0.842                        & 0.842      \\
+    \end{longtable}
+\end{ThreePartTable}
