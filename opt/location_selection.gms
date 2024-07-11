@@ -49,7 +49,7 @@ options
 threads = 6,
 optCR = 0.01,
 BRatio = 1,
-reslim = 8000
+reslim = 16000
 ;
 
 *memoryemphasis 1
@@ -59,6 +59,7 @@ fraccuts=-1
 solvefinal 0
 names no
 solutiontype 2
+writelp %fnamelp%
 $offecho
 siting.OptFile = 1;
 
