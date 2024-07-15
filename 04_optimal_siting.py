@@ -20,7 +20,7 @@ if not atlas.wind_turbines:
         "Vestas.V100.1800", "Vestas.V100.2000", "Vestas.V112.3075"
     ]
 if 'capacity_factors' not in atlas.wind.data.data_vars:
-    atlas.wind.simulate_capacity_factors(bias_correction=0.71197)  # 0.71197
+    atlas.wind.simulate_capacity_factors(bias_correction=0.71197)
 if 'lcoe' not in atlas.wind.data.data_vars:
     atlas.wind.compute_lcoe(turbine_cost_share=0.7)
 if 'min_lcoe' not in atlas.wind.data.data_vars:

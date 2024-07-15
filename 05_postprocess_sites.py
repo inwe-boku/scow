@@ -33,7 +33,7 @@ if not atlas.wind_turbines:
         "Vestas.V100.1800", "Vestas.V100.2000", "Vestas.V112.3075"
     ]
 if 'capacity_factors' not in atlas.wind.data.data_vars:
-    atlas.wind.simulate_capacity_factors(bias_correction=0.71197)  # 0.71197
+    atlas.wind.simulate_capacity_factors(bias_correction=0.71197)
 if 'lcoe' not in atlas.wind.data.data_vars:
     atlas.wind.compute_lcoe(turbine_cost_share=0.7)
 if 'min_lcoe' not in atlas.wind.data.data_vars:
@@ -131,7 +131,7 @@ for df, filename in zip([opt_cost_lcoe, opt_cost_loco, opt_cost_soco],
     cx.add_basemap(ax, crs=state.crs, source=cx.providers.BasemapAT.terrain, zoom=10)
     ax.set_axis_off()
     plt.tight_layout()
-    plt.savefig(repo / f'figures/{filename}', dpi=200)
+    plt.savefig(repo / f'figures/{filename}', dpi=300)
     plt.close()
 
 logging.info('Maps of optimal wind turbine sites saved')
@@ -146,7 +146,7 @@ plt.grid()
 ax.set_axisbelow(True)
 plt.legend(['Quasi-LCOE', 'Local Social Cost'], loc='upper left')
 plt.tight_layout()
-plt.savefig(repo / 'figures/cost_curve.png', dpi=200)
+plt.savefig(repo / 'figures/cost_curve.png', dpi=300)
 plt.close()
 
 logging.info('Social cost curve saved')
