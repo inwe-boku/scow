@@ -7,7 +7,7 @@ import rioxarray as rxr
 import cleo
 from fiona import drvsupport
 from xrspatial import slope as xrs_slope
-
+from config import repo
 from scow.site_data import (process_tourism, process_water_bodies, process_gip, process_protected_areas,
                             generate_data_dict, process_wind_turbine_locations)
 
@@ -16,7 +16,7 @@ drvsupport.supported_drivers['LIBKML'] = 'rw'
 touch = True
 
 # %% initialize Atlas for Austria
-atlas = cleo.Atlas("c:/git_repos/repscow", "AUT", "epsg:31287")
+atlas = cleo.Atlas(str(repo), "AUT", "epsg:31287")
 atlas.clip_to_nuts("Niederösterreich", inplace=True)
 if not atlas.wind_turbines:
     atlas.wind_turbines = [

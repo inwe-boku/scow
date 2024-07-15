@@ -8,6 +8,7 @@ import geopandas as gpd
 import gams.transfer as gt
 from pathlib import Path
 from scipy.stats import t
+from config import rdir
 
 
 def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, variables):
@@ -22,7 +23,7 @@ def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, var
     :return:
     """
     command = [
-        "C:/myprogs/R/R-4.2.2/bin/Rscript",
+        str(rdir),
         "discrete_choice.R",
         str(work_dir),
         datafile,

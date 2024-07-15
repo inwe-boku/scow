@@ -11,9 +11,6 @@ import contextily as cx
 import xarray as xr
 from config import repo, data_ver
 
-# from logging_config import setup_logging
-# setup_logging()
-# TODO: investigate where "Energy"-column in opt_cost-variables comes from -- is CRS properly set?
 # %% Settings
 BL = 'Niederösterreich'
 country = 'AUT'
