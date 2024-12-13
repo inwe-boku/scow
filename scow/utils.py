@@ -8,7 +8,7 @@ import geopandas as gpd
 import gams.transfer as gt
 from pathlib import Path
 from scipy.stats import t
-from config import rdir
+from config import rdir, gamsdir
 
 
 def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, variables):
@@ -24,6 +24,7 @@ def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, var
     """
     command = [
         str(rdir),
+        "--vanilla",
         "discrete_choice.R",
         str(work_dir),
         datafile,
@@ -33,14 +34,28 @@ def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, var
     ] + variables
 
     # Execute the command
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    # Wait for the process to finish
-    stdout, stderr = process.communicate()
-    # Check for errors
-    if process.returncode != 0:
-        print("Error:", stderr.decode())
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # logging.info("Starting R script ...")
+    print("Starting R script ...")
+
+    while True:
+        output = process.stdout.readline()
+        if output == "" and process.poll() is not None:
+            break
+        if output:
+            #logging.info(output.strip())
+            print(output.strip())
+
+    stderr = process.stderr.read()
+    return_code= process.returncode
+    if return_code != 0:
+        # logging.info(f"Error: {stderr.strip()}")
+        raise RuntimeError(f"R script failed with error: {stderr}")
     else:
-        print("Output:", stdout.decode())
+        # logging.info("R script finished successfully")
+        print("R script finished successfully")
+
 
 
 def postprocess_spatialdc(work_dir, datafile, run_name):
@@ -71,7 +86,7 @@ def postprocess_spatialdc(work_dir, datafile, run_name):
 
 def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_runs, compute=True):
     """
-    iteratively runs spatial discrete choice leaving one variable out
+    Iteratively runs spatial discrete choice leaving one variable or interaction term out
     :param compute:
     :param variables:
     :param integer_variables:
@@ -84,12 +99,12 @@ def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_r
     # generate all leave-one-out variable combinations
     iter_dict = {}
     for i, var in enumerate(variables):
-        reduced_vars = [v for v in variables if var not in v]
+        reduced_vars = [v for v in variables if v != var]
         iter_dict[i] = [var, reduced_vars]
 
     # run each leave-one-out combination
     if compute:
-        for i in range(0, len(iter_dict)):
+        for i in range(len(iter_dict)):
             var = iter_dict[i][0]
             reduced_vars = iter_dict[i][1]
             run_name = f"{name}_{var}"
@@ -100,7 +115,7 @@ def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_r
     # process results of runs
     run_stats = []
     run_coeffs = []
-    for i in range(0, len(iter_dict)):
+    for i in range(len(iter_dict)):
         var = iter_dict[i][0]
         run_name = f"{name}_{var}"
         coeff, loglik = postprocess_spatialdc(work_dir, data_file, run_name.replace(":", "_"))
@@ -142,7 +157,7 @@ def add_symbols(container, lcoe_map, nturb, space_px):
 def run_optimization(gams_dict, gdx_out, n):
     gms_exe_dir = gams_dict['gams_exe']
     gms_model = gams_dict['gams_model']
-    subprocess.run(f'{gms_exe_dir}\\gams {gms_model} gdx={gdx_out} lo=3 o=nul --fnamelp=oploc{n}.lp')
+    subprocess.run(f'{gms_exe_dir}/gams {gms_model} gdx={gdx_out} lo=3 o=/dev/null --fnamelp=oploc{n}.lp', shell=True)
 
 
 def sliced_location_optimization(gams_dict, gams_container, lcoe_array, num_slices, num_turbines, space_px,
@@ -186,7 +201,7 @@ def sliced_location_optimization(gams_dict, gams_container, lcoe_array, num_slic
             gams_container.write(str(gams_dict['gdx_input']))
             run_optimization(gams_dict, gdx_out, _)
 
-        results = gt.Container()
+        results = gt.Container(system_directory=gamsdir.parent)
         results.read(str(gdx_out), 'build')
         locs = results.data['build'].records[['l', 'b', 'level']]
         locs = locs.loc[locs['level'] > 0]
