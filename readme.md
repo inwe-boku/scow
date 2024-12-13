@@ -21,7 +21,7 @@ conda env create -n myenv -f environment.yml
 ```
 For `cleo` installation and usage, refer to the [cleo GitHub page](https://github.com/sebwehrle/cleo).
 
-Apart from python, installations of [R](https://www.r-project.org/)  and [GAMS](https://www.gams.com/) are also required.
+Apart from python, installations of GDAL, [R](https://www.r-project.org/)  and [GAMS](https://www.gams.com/) are also required.
 
 ## Execution
 ### Configuration
