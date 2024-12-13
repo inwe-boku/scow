@@ -5,20 +5,14 @@ import pandas as pd
 import xarray as xr
 import gams.transfer as gt
 from scow.utils import sliced_location_optimization, locations_to_gdf
-from config import repo, data_ver, spacing, gams_conf, nturbines
+from config import repo, data_ver, spacing, gamsdir, gams_conf, nturbines
 
 slice_count = 6
 read_locations = False
 
 # %%
-atlas = cleo.Atlas(repo, "AUT", "EPSG:31287")
-if atlas.region != "Niederösterreich":
-    atlas.clip_to_nuts("Niederösterreich")
-if not atlas.wind_turbines:
-    atlas.wind_turbines = [
-        "Enercon.E40.500", "Enercon.E82.3000", "Enercon.E101.3050", "Enercon.E115.3000",
-        "Vestas.V100.1800", "Vestas.V100.2000", "Vestas.V112.3075"
-    ]
+atlas = cleo.Atlas(repo, "AUT", "EPSG:31287").load("WindAtlas_AUT_Niederösterreich_2014_20241210T140021.nc")
+
 if 'capacity_factors' not in atlas.wind.data.data_vars:
     atlas.wind.simulate_capacity_factors(bias_correction=0.71197)
 if 'lcoe' not in atlas.wind.data.data_vars:
@@ -47,7 +41,7 @@ for objective in objectives:
         cost_threshold = 125
 
     if read_locations is False:
-        gams_container = gt.Container()
+        gams_container = gt.Container(system_directory=gamsdir.parent)
         locations = sliced_location_optimization(gams_conf, gams_container, cost_array, num_slices=slice_count,
                                                  num_turbines=nturbines, space_px=spacing, min_turbines=1200,
                                                  max_turbines=6000, lcoe_thresh=cost_threshold,
@@ -59,7 +53,7 @@ for objective in objectives:
 
     total_num_turbines = len(locations)
 
-    # uncover total social cost at optimal locations
+    # %% uncover total social cost at optimal locations
     cost_at_best_locations = [locations_to_gdf(cost_array, locations[(i * total_num_turbines):((i + 1) * total_num_turbines)],
                                                cost_name=objective, energy_array=energy, power_array=power) for i in range(0, slice_count)]
     cost_at_best_locations = pd.concat(cost_at_best_locations)
