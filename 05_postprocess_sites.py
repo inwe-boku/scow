@@ -14,9 +14,9 @@ from config import repo, data_ver
 # %% Settings
 BL = 'Niederösterreich'
 country = 'AUT'
-model_spec = 'base'  # 'parsimonious'
+model_spec = 'base'  # ['parsimonious', 'base']
 scenario = 'cost'
-year = 2014
+year = 2014  # [2014, 'modern']
 GENERATION_TARGET = 8.00
 
 # %% Read optimization results and maps
@@ -55,7 +55,6 @@ def to_geopandas(df):
     cols = [c for c in list(df.columns) if c not in ['geometry', 'Unnamed: 0']]
     df = gpd.GeoDataFrame(geometry=df['geometry'], data=df[cols])
     return df
-
 
 opt_cost_soco = to_geopandas(opt_cost_soco)
 opt_cost_loco = to_geopandas(opt_cost_loco)
