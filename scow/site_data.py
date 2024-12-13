@@ -324,7 +324,8 @@ def generate_data_dict(data_path, wdpa_date="Mar2024", country="AUT"):
              'https://zenodo.org/record/47317/files/gridkit_euorpe.zip?download=1'],
         'Zonierung_noe.zip':
             [data_path / 'zones',
-             "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P19&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],
+             # "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P19&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],  # Zoning as of 2024; no longer online
+             "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P20_ROG14&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],  # Zoning as of 2024
         'B_gip_network_ogd.zip':
             [data_path / 'gip',
              'https://open.gip.gv.at/ogd/B_gip_network_ogd.zip'],
@@ -337,9 +338,9 @@ def generate_data_dict(data_path, wdpa_date="Mar2024", country="AUT"):
         'Adressregister.zip':
             [data_path / 'gwr',
              'https://data.bev.gv.at/download/Adressregister/Archiv_Adressregister/Adresse_Relationale_Tabellen_Stichtagsdaten_20220403.zip'],
-        #'elevation.zip':
-        #    [data_path / 'elevation',
-        #     'https://gis.ktn.gv.at/OGD/Geographie_Planung/ogd-10m-at.zip'],
+        'elevation.zip':
+            [data_path / 'elevation',
+             'https://gis.ktn.gv.at/OGD/Geographie_Planung/ogd-10m-at.zip'],
         'Widmungen_noe.zip':
             [data_path / 'landuse',
              'https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WI_HUELLE&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8'],
@@ -352,7 +353,7 @@ def generate_data_dict(data_path, wdpa_date="Mar2024", country="AUT"):
         # find latest download-link at: https://www.austrocontrol.at/piloten/vor_dem_flug/aim_produkte/luftraumstruktur
         'LuftraumAT.kmz':
             [data_path / 'airspace',
-             'https://www.austrocontrol.at/jart/prj3/ac/data/dokumente/20240418LuftraumAT_2024-02-07_1102989.kmz'],
+             'https://www.austrocontrol.at/jart/prj3/ac/data/dokumente/20241226LuftraumAT_2024-10-29_1110238.kmz'],
         'alpsconvention.zip':
             [data_path / 'alps',
              'https://www.atlas.alpconv.org/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=geonode%3AAlpine_Convention_Perimeter_2018_v2&outputFormat=SHAPE-ZIP&srs=EPSG%3A3034&format_options=charset%3AUTF-8'],
