@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 import xarray as xr
 import rioxarray as rxr
+import netCDF4
 import cleo
 from fiona import drvsupport
 from xrspatial import slope as xrs_slope
@@ -23,12 +24,12 @@ if not atlas.wind_turbines:
         "Enercon.E40.500", "Enercon.E82.3000", "Enercon.E101.3050", "Enercon.E115.3000",
         "Vestas.V100.1800", "Vestas.V100.2000", "Vestas.V112.3075"]  # wind turbines as of 2014
 
-atlas.wind.compute_terrain_roughness_length()
+atlas.wind.compute_wind_shear_coefficient()
 atlas.wind.compute_air_density_correction()
 atlas.wind.compute_weibull_pdf()
 
 # %% download site data sets
-dict = generate_data_dict(atlas.path / "data" / "site")
+dict = generate_data_dict(atlas.path / "data" / "site", wdpa_date="Dec2024")
 atlas.landscape.load_and_extract_from_dict(dict)
 
 # # # # # # PROPRIETARY DATA # # # # #
@@ -60,6 +61,7 @@ if "elevation" not in atlas.landscape.data.data_vars:
     elevation = elevation.squeeze()
     # clip elevation to nuts region
     clips = atlas.get_nuts_region(atlas.region)
+    # clips = clips.to_crs(atlas.crs)
     elevation = elevation.rio.reproject(atlas.crs)
     elevation = elevation.rio.clip(clips.geometry)
     # compute slope
@@ -255,7 +257,7 @@ atlas.wind.simulate_capacity_factors(bias_correction=0.71197)
 atlas.wind.compute_lcoe(turbine_cost_share=0.7)
 atlas.wind.minimum_lcoe()
 atlas.wind.compute_optimal_power_energy()
-atlas.save_datasets(overwrite=False)
+atlas.save(scenario='2014')
 
 # write data at time of decision to csv
 atlas.landscape.add(atlas.wind.data.min_lcoe, name='min_lcoe')
@@ -279,7 +281,7 @@ atlas.wind.minimum_lcoe()
 
 atlas.landscape.data = atlas.landscape.data.drop_vars("min_lcoe")
 atlas.landscape.add(atlas.wind.data.min_lcoe, name='min_lcoe')
-atlas.save_datasets(overwrite=False)
+atlas.save(scenario='modern')
 df = atlas.landscape.flatten()
 df = df.dropna(how="any", axis=0)
 df.to_csv(atlas.path / "data" / "processed" / "dc_data_modern.csv")
