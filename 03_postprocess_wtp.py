@@ -20,8 +20,8 @@ parsimonious_coeffs, parsimonious_stats = postprocess_spatialdc(repo, data_ver, 
 parsimonious_coeffs["valuation"] = parsimonious_coeffs["estimate"] / parsimonious_coeffs.loc["min_lcoe", "estimate"]
 
 # %% load site data
-atlas = cleo.Atlas(repo, "AUT", "epsg:31287")
-atlas.clip_to_nuts("Niederösterreich", inplace=True)
+atlas = cleo.Atlas(repo, "AUT",  crs="epsg:31287").load(region='Niederösterreich', scenario='2014', timestamp='20241210T140021')
+
 if not atlas.wind_turbines:
     atlas.wind_turbines = [
         "Enercon.E40.500", "Enercon.E82.3000", "Enercon.E101.3050", "Enercon.E115.3000",
@@ -34,7 +34,7 @@ if 'min_lcoe' not in atlas.wind.data.data_vars:
 if 'min_lcoe' not in atlas.landscape.data.data_vars:
     atlas.landscape.add(atlas.wind.data.min_lcoe, name='min_lcoe')
 
-# generate interaction terms
+# generate interaction data
 for var in list(parsimonious_coeffs.index):
     if ":" in var:
         vars = var.split(":")
