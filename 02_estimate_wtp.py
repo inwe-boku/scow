@@ -54,6 +54,7 @@ def estimate_spatial_dc(work_dir, data_file, num_runs, run_name, count_binaries,
                         compute=True):
     if compute:
         subprocess_rscript(work_dir, data_file, num_runs, run_name, count_binaries, variables)
+
     coeff, loglik = postprocess_spatialdc(work_dir, data_file, run_name)
     insignificant = list(coeff[coeff["pval"] > 0.1].index)
     criterion = loglik[selection_criterion]
@@ -61,15 +62,24 @@ def estimate_spatial_dc(work_dir, data_file, num_runs, run_name, count_binaries,
 
 
 def eliminate_variable(variables_list, eliminate, integer_variables):
-    surviving_integers = [ivar for ivar in variables_list if ivar in integer_variables and ivar not in eliminate]
-    surviving_floats = [var for var in variables_list if var not in eliminate and var not in integer_variables]
+    # Remove only the specified variables and their dependent interaction terms if explicitly specified
+    eliminate_with_interactions = set(eliminate)
+    for elim_var in eliminate:
+        if ':' in elim_var:
+            eliminate_with_interactions.update([var for var in variables_list if elim_var in var])
+        else:
+            eliminate_with_interactions.add(elim_var)
+
+    # Separate surviving binary (integer) and float variables
+    surviving_integers = [ivar for ivar in variables_list if ivar in integer_variables and ivar not in eliminate_with_interactions]
+    surviving_floats = [var for var in variables_list if var not in eliminate_with_interactions and var not in integer_variables]
     int_count = str(len(surviving_integers))
     return surviving_integers, surviving_floats, int_count
 
 
 # %% initial estimation
 coeff_init, crit_init, insignificant, loglik_init = estimate_spatial_dc(
-    repo,
+    str(repo),
     data_ver,
     num_runs,
     "full",
