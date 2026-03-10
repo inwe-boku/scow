@@ -2,7 +2,7 @@
 from pathlib import Path
 
 # %% config
-repo = Path("/Users/nwesec/repos/scow")
+repo = Path("/Users/nwesec/code/scow")
 data_ver = "2014"  # "2014" or "modern"
 
 num_runs = "2500"

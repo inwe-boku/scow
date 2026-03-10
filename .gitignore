@@ -1,0 +1,25 @@
+# Agent and local-maintainer files
+.local/
+AGENTS.md
+CLAUDE.md
+REPO_MAP.md
+
+# OS and editor noise
+.DS_Store
+.idea/
+
+# Python caches
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Local data and generated artifacts
+data/
+results/
+figures/
+
+# Solver and debug outputs
+opt/*.gdx
+opt/*.lp
+debug.txt
+

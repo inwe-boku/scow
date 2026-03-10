@@ -8,7 +8,7 @@ import pandas as pd
 import geopandas as gpd
 
 from pathlib import Path
-from cleo.utils import download_file
+# from cleo.utils import download_file
 from datetime import datetime
 
 # TODO: gdal-bin needs to be installed for processing GIP
@@ -105,7 +105,7 @@ def process_tourism(data_path):
     logging.info('Touristic overnight stays preprocessed')
     return geostays
 
-
+"""
 def process_windturbines():
 
     # Settings for downloading and processing wind turbine data from IG Windkraft
@@ -205,7 +205,7 @@ def process_windturbines():
     turbine_locations.to_file(data_dir / 'turbines.shp')
 
     print('Turbine locations preprocessed')
-
+"""
 
 def process_protected_areas(path):
     protected_areas = gpd.GeoDataFrame()
@@ -229,7 +229,7 @@ def process_protected_areas(path):
     protected_areas = protected_areas.dissolve()
     return protected_areas
 
-
+"""
 def process_wind_turbine_locations(self):
     igw_url = 'https://www.igwindkraft.at/src_project/external/maps/generated/gmaps_daten.js'
     turbines_dir = self.parent.path / "data" / "site" / f"{self.parent.country}_turbines"
@@ -299,6 +299,259 @@ def process_wind_turbine_locations(self):
     turbine_locations.to_file(turbines_dir / 'turbines.shp')
     logging.info('Turbine locations preprocessed')
     return turbine_locations
+"""
+
+def process_wind_turbine_locations(self):
+    import json
+    import logging
+    import re
+    from html import unescape as html_unescape
+
+    import numpy as np
+    import pandas as pd
+    import requests
+    import geopandas as gpd
+    from bs4 import BeautifulSoup
+
+    turbines_dir = self.parent.path / "data" / "site" / f"{self.parent.country}_turbines"
+    turbines_dir.mkdir(parents=True, exist_ok=True)
+
+    igw_page_url = "https://www.igwindkraft.at/aktuelles/windrad-karte"
+
+    def _to_float_de(s):
+        if s is None:
+            return np.nan
+        s = str(s).strip()
+        if not s:
+            return np.nan
+        s = s.replace(" ", "")
+        m = re.search(r"[-+]?\d+(?:[.,]\d+)?", s)
+        if not m:
+            return np.nan
+        token = m.group(0).replace(",", ".")
+        try:
+            return float(token)
+        except ValueError:
+            return np.nan
+
+    def _extract_wheels_json(html: str) -> dict:
+        # DOM attempt: any node with a wheels attribute
+        soup = BeautifulSoup(html, "html.parser")
+        node = soup.select_one("[wheels]")
+        if node is not None:
+            wheels_raw = node.get("wheels")
+            if wheels_raw:
+                return json.loads(wheels_raw)
+
+        # Regex fallback
+        m = re.search(r"wheels\s*=\s*'(.+?)'", html, flags=re.DOTALL)
+        if not m:
+            m = re.search(r'wheels\s*=\s*"(.+?)"', html, flags=re.DOTALL)
+        if not m:
+            raise RuntimeError("Could not locate wheels=... in IGW HTML (windrad-karte).")
+
+        wheels_raw = html_unescape(m.group(1))
+        return json.loads(wheels_raw)
+
+    def _parse_typeinfo(typeinfo_html: str):
+        """
+        Example:
+          "Type: Seewind, S 20/110<br>Nabenhöhe: 36, Rotordurchmesser: 20"
+        Returns:
+          (manufacturer, model, hub_height_m, rotor_diameter_m)
+        """
+        raw = typeinfo_html or ""
+        norm = raw.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
+        norm = BeautifulSoup(norm, "html.parser").get_text(separator="\n", strip=True)
+
+        manufacturer = ""
+        model = ""
+        hub_height = np.nan
+        rotor_diameter = np.nan
+
+        m = re.search(r"(?im)^\s*Type\s*:\s*(.+?)\s*(?:,\s*(.+?))?\s*$", norm)
+        if m:
+            manufacturer = (m.group(1) or "").strip()
+            model = (m.group(2) or "").strip()
+        else:
+            first_line = norm.splitlines()[0].strip() if norm.strip() else ""
+            m2 = re.search(r"(?i)type\s*:\s*(.+)", first_line)
+            payload = m2.group(1).strip() if m2 else first_line
+            if "," in payload:
+                manufacturer, model = [p.strip() for p in payload.split(",", 1)]
+            else:
+                manufacturer = payload.strip()
+
+        mh = re.search(r"(?i)\bNabenhöhe\s*:\s*([0-9]+(?:[.,][0-9]+)?)", norm)
+        if mh:
+            hub_height = _to_float_de(mh.group(1))
+
+        mr = re.search(r"(?i)\bRotordurchmesser\s*:\s*([0-9]+(?:[.,][0-9]+)?)", norm)
+        if mr:
+            rotor_diameter = _to_float_de(mr.group(1))
+
+        return manufacturer, model, hub_height, rotor_diameter
+
+    def _parse_facilityinfo(facilityinfo: str):
+        """
+        Example:
+          "1 Anlage(n), je 0.11 MW, errichtet: 1994"
+        Returns:
+          (n_anlagen, mw_each, built_year)
+        """
+        if not facilityinfo:
+            return np.nan, np.nan, np.nan
+        s = str(facilityinfo)
+
+        m_n = re.search(r"(?i)\b(\d+)\s*Anlage\(n\)\b", s)
+        n_anlagen = int(m_n.group(1)) if m_n else np.nan
+
+        m_mw = re.search(r"(?i)\bje\s*([0-9]+(?:[.,][0-9]+)?)\s*MW\b", s)
+        mw_each = _to_float_de(m_mw.group(1)) if m_mw else np.nan
+
+        m_y = re.search(r"(?i)\berrichtet\s*:\s*(\d{4})\b", s)
+        built_year = int(m_y.group(1)) if m_y else np.nan
+
+        return n_anlagen, mw_each, built_year
+
+    # --- scrape current IGW data (windrad-karte) and emit the legacy CSV schema ---
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "de-AT,de;q=0.9,en;q=0.8",
+    }
+    r = requests.get(igw_page_url, headers=headers, timeout=60)
+    r.raise_for_status()
+    wheels = _extract_wheels_json(r.text)
+
+    rows = []
+    for group_id, items in wheels.items():
+        for idx, item in enumerate(items):
+            # Only keep meaningful keys (drop numeric-string nulls "1".."28")
+            d = {k: v for k, v in dict(item).items() if not str(k).isdigit()}
+
+            project = d.get("project", "")
+            lon = d.get("x", np.nan)
+            lat = d.get("y", np.nan)
+
+            facilityInfo = d.get("facilityInfo", "")
+            typeInfo = d.get("typeInfo", "")
+
+            n_anlagen, mw_each, built_year = _parse_facilityinfo(facilityInfo)
+            manufacturer, model, hub_h, rotor_d = _parse_typeinfo(typeInfo)
+
+            # mweinzeln is already MW per unit (matches facilityInfo "je ... MW")
+            mw_each2 = d.get("mweinzeln", mw_each)
+            mw_each2 = _to_float_de(mw_each2)
+
+            kW_each = np.nan
+            if np.isfinite(mw_each2):
+                kW_each = int(round(mw_each2 * 1000.0))
+
+            # Legacy output schema (same columns as your old code)
+            rows.append({
+                "Name": project,
+                "Betreiber1": "",          # not provided by current dataset
+                "Betreiber2": "",          # not provided by current dataset
+                "n_Anlagen": n_anlagen,
+                "kW": kW_each,
+                "Type": model,
+                "Jahr": built_year,
+                "x": lon,                  # legacy column existed; keep lon here
+                "lat": lat,
+                "lon": lon,
+                "url": "",                 # not provided by current dataset
+                "Hersteller": manufacturer,
+                "Nabenhöhe": hub_h,
+                "Rotordurchmesser": rotor_d,
+            })
+
+    igw = pd.DataFrame(
+        rows,
+        columns=[
+            "Name", "Betreiber1", "Betreiber2", "n_Anlagen", "kW", "Type", "Jahr", "x", "lat",
+            "lon", "url", "Hersteller", "Nabenhöhe", "Rotordurchmesser",
+        ],
+    )
+
+    # --- your legacy normalization/cleaning (unchanged) ---
+
+    strep_typ = {
+        "E-40": "E40", "E40/5.40": "E40 5.40", "E40 5.4": "E40 5.40", "E66 18.7": "E66 18.70",
+        "E66/18.70": "E66 18.70", "E66.18": "E66 18.70", "E66 20.7": "E66 20.70", "E70/E4": "E70 E4",
+        "E70/20.71": "E70 E4", "E70": "E70 E4", "E-101": "E101", "E 101": "E101", "E115/3.000": "E115",
+        "3.XM": "3XM", "V126/3450": "V126",
+    }
+    strep_her = {"ENERCON": "Enercon", "DeWind": "Dewind"}
+
+    igw["Type"] = igw["Type"].replace(strep_typ)
+    igw["Hersteller"] = igw["Hersteller"].replace(strep_her)
+
+    # clean Types (same rules; depends on kW)
+    igw.loc[(igw["Type"] == "E40") & (igw["kW"] == 500), "Type"] = "E40 5.40"
+    igw.loc[(igw["Type"] == "E40") & (igw["kW"] == 600), "Type"] = "E40 6.44"
+    igw.loc[(igw["Type"] == "E66") & (igw["kW"] == 1800), "Type"] = "E66 18.70"
+    igw.loc[(igw["Type"] == "E82") & (igw["kW"] == 2300), "Type"] = "E82 E2"
+    igw.loc[(igw["Type"] == "E115") & (igw["kW"] == 3200), "Type"] = "E115 E2"
+    igw.loc[(igw["Type"] == "M114") & (igw["kW"] == 3170), "Type"] = "3.2M114"
+
+    # source: https://www.ris.bka.gv.at/Dokumente/Bvwg/BVWGT_20150313_W102_2008321_1_00/BVWGT_20150313_W102_2008321_1_00.html
+    oberwaltersdorf = igw["Name"].astype(str).str.contains("Oberwaltersdorf", na=False)
+    igw.loc[oberwaltersdorf, ["Type", "Nabenhöhe", "Rotordurchmesser"]] = ["V112", 140, 112]
+
+    # source: https://www.bundesforste.at/fileadmin/erneuerbare_energie/Folder_Windpark-Pretul_FINAL_screen.pdf
+    pretul = igw["Name"].astype(str).str.contains("Pretul", na=False)
+    igw.loc[pretul, ["Type", "Betreiber1"]] = ["E82 E4", "Österreichische Bundesforste"]
+
+    igw[["Nabenhöhe", "Rotordurchmesser"]] = (
+        igw[["Nabenhöhe", "Rotordurchmesser"]].replace("", np.nan).astype(float)
+    )
+
+    igw.to_csv(turbines_dir / "igwturbines.csv", sep=";", decimal=",", encoding="utf8", index=False)
+    logging.info("Download of wind turbine data complete")
+
+    # --- merge wind turbine location data from IGW and BEV (unchanged except one bugfix) ---
+
+    bev = (
+        gpd.read_file(self.parent.path / "data" / "site" / "buildings" / "BAU_2200_BETRIEB_P_0.shp")
+        .loc[lambda df: df.F_CODE == 2202]
+        .to_crs(self.parent.crs)
+    )
+    bev["points"] = bev["geometry"]
+    bev["geometry"] = bev["geometry"].buffer(20)
+
+    # BUGFIX: use the dataframe we just read for points_from_xy (not a stale name)
+    igw_df = pd.read_csv(turbines_dir / "igwturbines.csv", sep=";", decimal=",")
+    igw = gpd.GeoDataFrame(
+        igw_df,
+        geometry=gpd.points_from_xy(igw_df["lon"], igw_df["lat"]),
+        crs="epsg:4326",
+    ).to_crs(self.parent.crs)
+
+    turbine_locations = bev.sjoin(igw, how="left", predicate="contains").reset_index(drop=True)
+    turbine_locations["ERSTELLDAT"] = turbine_locations["ERSTELLDAT"].apply(pd.to_datetime)
+
+    turbine_locations["Jahr"] = turbine_locations["Jahr"].fillna(turbine_locations["ERSTELLDAT"].dt.year)
+    turbine_locations["Jahr"] = turbine_locations["Jahr"].astype(int)
+
+    turbine_locations["ERSTELLDAT"] = turbine_locations["ERSTELLDAT"].astype(str)
+
+    turbine_locations = turbine_locations[
+        [
+            "NAME", "Name", "BETREIBER", "Betreiber1", "Betreiber2", "HOEHE",
+            "Nabenhöhe", "Rotordurchmesser", "kW", "Hersteller", "Type", "Jahr",
+            "ERSTELLDAT", "n_Anlagen", "url", "geometry",
+        ]
+    ]
+
+    turbine_locations.to_file(turbines_dir / "turbines.shp")
+    logging.info("Turbine locations preprocessed")
+    return turbine_locations
+
 
 
 # %% data dict for Austrian data
@@ -353,10 +606,11 @@ def generate_data_dict(data_path, wdpa_date="Mar2024", country="AUT"):
         # find latest download-link at: https://www.austrocontrol.at/piloten/vor_dem_flug/aim_produkte/luftraumstruktur
         'LuftraumAT.kmz':
             [data_path / 'airspace',
-             'https://www.austrocontrol.at/jart/prj3/ac/data/dokumente/20241226LuftraumAT_2024-10-29_1110238.kmz'],
+             'https://www.austrocontrol.at/jart/prj3/ac/data/dokumente/20260319LuftraumAT_2026-01-23_080116.kmz'],
         'alpsconvention.zip':
             [data_path / 'alps',
-             'https://www.atlas.alpconv.org/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=geonode%3AAlpine_Convention_Perimeter_2018_v2&outputFormat=SHAPE-ZIP&srs=EPSG%3A3034&format_options=charset%3AUTF-8'],
+             'https://maps.eurac.edu/geoserver/ows?format_options=charset%3AUTF-8&outputFormat=SHAPE-ZIP&request=GetFeature&service=WFS&srs=EPSG%3A32632&typename=geonode%3Aalpineconvention_2f19551311fb14f3075b85124055c19d&version=1.0.0'],
+             # 'https://www.atlas.alpconv.org/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typename=geonode%3AAlpine_Convention_Perimeter_2018_v2&outputFormat=SHAPE-ZIP&srs=EPSG%3A3034&format_options=charset%3AUTF-8'],
         # find latest download link at: https://www.protectedplanet.net/country/AUT
         f'wdpa_{country}.zip':
             [data_path / 'schutzgebiete',
