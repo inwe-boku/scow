@@ -16,6 +16,8 @@ dependencies:
   - xarray-spatial
   - seaborn
   - contextily
+  - requests
+  - beautifulsoup4
   - pip
   - fiona
   - matplotlib

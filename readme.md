@@ -23,22 +23,32 @@ For `cleo` installation and usage, refer to the [cleo GitHub page](https://githu
 
 Apart from python, installations of GDAL, [R](https://www.r-project.org/) and a working [Gurobi](https://www.gurobi.com/) setup for the Python environment are also required.
 
+Required non-base R packages for stage 2:
+- `logitr`
+- `tidyverse`
+- `broom`
+
 ## Execution
 ### Configuration
 Configure the following settings in `config.py`:
 ```python
-repo = Path("path/to/repository")
+from pathlib import Path
+import shutil
+
+repo = Path(__file__).resolve().parent
 data_ver = "2014"  # "2014" for the time of zoning decision or "modern" for current wind turbines
 
-num_runs = "2500"  # number of iterations for discrete choice estimation
+num_runs = "500"  # number of iterations for discrete choice estimation
 selection_criterion = "BIC"  # options: "AIC" or "BIC"
 replication_seed = 42  # seed for repeated discrete-choice estimation
 
 spacing = 3  # minimum pixels between wind turbines for optimal location
 nturbines = "auto"  # automatic selection of deployed wind turbines
 
-rdir = Path("C:/myprogs/R/R-4.2.2/bin/Rscript")  #  path to Rscript.exe (Windows)
+rdir = Path(shutil.which("Rscript") or "Rscript")  # resolved from PATH at runtime
 ```
+
+`data/results` and `figures` are created automatically by the path helpers when downstream stages write outputs.
 
 ### Data Processing
 Execute the scripts sequentially:
@@ -57,9 +67,9 @@ Execute the scripts sequentially:
 
 3. **03_postprocess_wtp.py**: Computes social costs, plots maps of private and social costs, and the distribution of various costs.
 
-4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, caching chunk results under `opt/` and saving final results to `opt_locations_{data_ver}_{objective}.csv` and `opt_cost_{data_ver}_{objective}.csv` in `data/results`.
+4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, reusing validated chunk caches under `opt/` when possible and writing final results to `opt_locations_{data_ver}_{objective}.csv` and `opt_cost_{data_ver}_{objective}.csv` in `data/results`.
 
 5. **05_postprocess_sites.py**: Processes optimal wind turbine sites, computes local and total social costs, and plots maps of optimal locations and the social cost curve.
 
 ### Logging
-Logs are kept in `data/logfile.log`.
+The canonical numbered pipeline scripts do not configure a centralized file logger by default; progress and warnings are emitted to standard output and error.

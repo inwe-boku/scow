@@ -10,7 +10,13 @@ from scow.utils import locations_to_gdf
 from config import atlas_path, data_ver, spacing, nturbines
 
 slice_count = 6
-read_locations = False
+# Retain the current stage-4 screening thresholds in EUR/MWh, but name them
+# explicitly so the objective-specific assumptions are visible in one place.
+OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH = {
+    "loco": 100,
+    "lcoe": 75,
+    "soco": 125,
+}
 
 
 def load_energy_for_stage4(atlas, power):
@@ -42,18 +48,15 @@ def load_energy_for_stage4(atlas, power):
     return (power * selected_cf * 8760 / 1_000_000).where(valid).rename("optimal_energy")
 
 
-def objective_outputs_complete(locations_path, cost_path):
-    """Return True only when both stage-4 outputs exist and contain rows."""
-    if not locations_path.exists() or not cost_path.exists():
-        return False
-
-    try:
-        locations = pd.read_csv(locations_path, index_col=0)
-        cost = pd.read_csv(cost_path, index_col=0)
-    except Exception:
-        return False
-
-    return (not locations.empty) and (not cost.empty)
+def objective_cost_array(social_cost, objective):
+    """Return the stage-4 cost surface for one named objective."""
+    if objective == "lcoe":
+        return social_cost["min_lcoe"].compute()
+    if objective == "loco":
+        return social_cost["Local Social Cost"].compute()
+    if objective == "soco":
+        return (social_cost["Local Social Cost"] + social_cost["min_lcoe"]).compute()
+    raise ValueError(f"Unknown stage-4 objective: {objective}")
 
 # %%
 atlas = load_atlas_for_analysis(
@@ -67,44 +70,25 @@ energy = load_energy_for_stage4(atlas, power)
 
 social_cost = xr.open_dataset(soco_path(data_ver))
 
-objectives = ["loco", "lcoe", "soco"]
-
-for objective in objectives:
-    if objective == "lcoe":
-        cost_array = social_cost["min_lcoe"].compute()
-        cost_threshold = 75
-    elif objective == "loco":
-        cost_array = social_cost["Local Social Cost"].compute()
-        cost_threshold = 100
-    elif objective == "soco":
-        cost_array = (social_cost["Local Social Cost"] + social_cost["min_lcoe"]).compute()
-        cost_threshold = 125
-    else:
-        raise ValueError(f"Unknown stage-4 objective: {objective}")
-
+for objective, cost_threshold in OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH.items():
+    cost_array = objective_cost_array(social_cost, objective)
     locations_path = opt_locations_path(data_ver, objective)
     cost_path = opt_cost_path(data_ver, objective)
-    if objective_outputs_complete(locations_path, cost_path):
-        logging.info("Skipping completed objective: %s", objective)
-        continue
 
-    if not read_locations:
-        locations = solve_objective_chunked(
-            cost_array,
-            scenario=data_ver,
-            objective=objective,
-            num_slices=slice_count,
-            num_turbines=nturbines,
-            space_px=spacing,
-            lcoe_thresh=cost_threshold,
-            min_turbines=1200,
-            max_turbines=6000,
-            axis=0,
-        )
+    locations = solve_objective_chunked(
+        cost_array,
+        scenario=data_ver,
+        objective=objective,
+        num_slices=slice_count,
+        num_turbines=nturbines,
+        space_px=spacing,
+        lcoe_thresh=cost_threshold,
+        min_turbines=1200,
+        max_turbines=6000,
+        axis=0,
+    )
 
-        locations.to_csv(locations_path)
-    else:
-        locations = pd.read_csv(locations_path, index_col=[0])
+    locations.to_csv(locations_path)
 
     # %% uncover total social cost at optimal locations
     cost_at_best_locations = locations_to_gdf(

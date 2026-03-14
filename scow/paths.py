@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from config import repo
@@ -12,7 +14,9 @@ def _label_segment(output_label: str | None) -> str:
 
 
 def results_dir() -> Path:
-    return repo / "data" / "results"
+    path = repo / "data" / "results"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def processed_dir() -> Path:
@@ -20,7 +24,9 @@ def processed_dir() -> Path:
 
 
 def figures_dir() -> Path:
-    return repo / "figures"
+    path = repo / "figures"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def opt_dir() -> Path:

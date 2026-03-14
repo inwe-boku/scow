@@ -1,19 +1,15 @@
 # %% imports
 import subprocess
+import sys
 from config import repo
 
-# %% data preprocessing
-subprocess.run(f"python {repo}/01_spatial_data.py")
-# import src.data_download
+scripts = [
+    "01_spatial_data.py",
+    "02_estimate_wtp.py",
+    "03_postprocess_wtp.py",
+    "04_optimal_siting.py",
+    "05_postprocess_sites.py",
+]
 
-# %% estimation of willingness to pay
-subprocess.run(f"python {repo}/02_estimate_wtp.py")
-
-# %% postprocessing of estimation results
-subprocess.run(f"python {repo}/03_postprocess_wtp.py")
-
-# %% optimal choice of wind turbine sites
-subprocess.run(f"python {repo}/04_optimal_siting.py")
-
-# %% postprocessing of wind turbine sites
-subprocess.run(f"python {repo}/05_postprocess_sites.py")
+for script in scripts:
+    subprocess.run([sys.executable, str(repo / script)], check=True)

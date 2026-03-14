@@ -52,6 +52,17 @@ opt_cost_lcoe = to_geopandas(opt_cost_lcoe)
 
 
 # %%  Compute cost at locations minimizing social cost
+def sites_to_target(df, target, cumulative_col='CumSumEnergy'):
+    """Return a positional mask including the first turbine that reaches the target."""
+    reached = df[cumulative_col].to_numpy() >= target
+    if reached.any():
+        cutoff_pos = int(reached.argmax())
+        mask = np.zeros(len(df), dtype=bool)
+        mask[:cutoff_pos + 1] = True
+        return mask
+    return np.ones(len(df), dtype=bool)
+
+
 def annual_cost(df):
     """
     Calculate the annual cost in million euros
@@ -91,13 +102,13 @@ opt_cost_loco = annual_cost(opt_cost_loco)
 cost_comparison = pd.DataFrame(index=["Private Cost", "Social Cost"],
                                columns=["Wind Turbines", "Local Social Cost", "Private Cost", "Total Local Social Cost"])
 # number of wind turbines
-turbine_sites_lcoe = opt_cost_lcoe['CumSumEnergy'] <= GENERATION_TARGET
+turbine_sites_lcoe = sites_to_target(opt_cost_lcoe, GENERATION_TARGET)
 cost_comparison.loc["Private Cost", "Wind Turbines"] = turbine_sites_lcoe.sum()
 cost_comparison.loc["Private Cost", "Private Cost"] = opt_cost_lcoe.loc[turbine_sites_lcoe, "Annual Private Cost"].sum()
 cost_comparison.loc["Private Cost", "Local Social Cost"] = opt_cost_lcoe.loc[turbine_sites_lcoe, "Annual Local Social Cost"].sum()
 cost_comparison.loc["Private Cost", "Total Local Social Cost"] = opt_cost_lcoe.loc[turbine_sites_lcoe, "Annual Social Cost"].sum()
 
-turbine_sites_soco = opt_cost_soco['CumSumEnergy'] <= GENERATION_TARGET
+turbine_sites_soco = sites_to_target(opt_cost_soco, GENERATION_TARGET)
 cost_comparison.loc["Social Cost", "Wind Turbines"] = turbine_sites_soco.sum()
 cost_comparison.loc["Social Cost", "Private Cost"] = opt_cost_soco.loc[turbine_sites_soco, "Annual Private Cost"].sum()
 cost_comparison.loc["Social Cost", "Local Social Cost"] = opt_cost_soco.loc[turbine_sites_soco, "Annual Local Social Cost"].sum()
@@ -115,7 +126,7 @@ for df, filename in zip([opt_cost_lcoe, opt_cost_loco, opt_cost_soco],
                         ['map_turbines_lcoe.png', 'map_turbines_loco.png', 'map_turbines_soco.png']):
     fig, ax = plt.subplots(figsize=(8, 5))
     state.plot(ax=ax, alpha=0.3, edgecolor='k')
-    df[df['CumSumEnergy'] <= GENERATION_TARGET].plot(ax=ax, color='red', markersize=2)
+    df.loc[sites_to_target(df, GENERATION_TARGET)].plot(ax=ax, color='red', markersize=2)
     try:
         cx.add_basemap(ax, crs=state.crs, source=cx.providers.BasemapAT.terrain, zoom=10)
     except Exception as exc:

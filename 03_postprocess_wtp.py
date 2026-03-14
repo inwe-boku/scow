@@ -1,5 +1,6 @@
 # %% imports
 import logging
+import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -16,6 +17,12 @@ from scow.paths import (
 from scow.stages import load_atlas_for_analysis
 from scow.utils import postprocess_spatialdc
 from config import repo, atlas_path, data_ver
+
+
+def _flat_finite(da):
+    values = np.asarray(da).ravel()
+    return values[np.isfinite(values)]
+
 
 # %% settings
 sens_name = "" if data_ver == "2014" else "_modern"
@@ -88,18 +95,20 @@ logging.info('Maps of Local Social Cost and LCOE plotted')
 cut_off = 0.999  # 0.999
 cost_by_turbine = pd.DataFrame()
 
-cost_distribution = pd.DataFrame(data=soco['Local Social Cost'].to_pandas().stack().reset_index(drop=True), columns=['Cost [€/MWh]'])
+loco_values = _flat_finite(soco["Local Social Cost"])
+cost_distribution = pd.DataFrame(data=loco_values, columns=['Cost [€/MWh]'])
 cost_distribution['target'] = 0
 cost_distribution['Cost Component'] = f'Local Social Cost'
 
-lcoe_at_all = pd.DataFrame(data=soco[f'min_lcoe'].to_pandas().stack().reset_index(drop=True), columns=['Cost [€/MWh]'])
+lcoe_values = _flat_finite(soco["min_lcoe"])
+lcoe_at_all = pd.DataFrame(data=lcoe_values, columns=['Cost [€/MWh]'])
 lcoe_at_all['target'] = 1
 lcoe_at_all['Cost Component'] = f'Quasi-LCOE'
 lcoe_at_all = lcoe_at_all.loc[lcoe_at_all['Cost [€/MWh]'] <= lcoe_at_all['Cost [€/MWh]'].quantile(cut_off), :]
 cost_distribution = pd.concat([cost_distribution, lcoe_at_all], ignore_index=True)
 
-loco = soco['Local Social Cost'] + soco[f'min_lcoe']
-loco = pd.DataFrame(data=loco.to_pandas().stack().reset_index(drop=True), columns=['Cost [€/MWh]'])
+total_local_social_cost = _flat_finite(soco["Local Social Cost"] + soco["min_lcoe"])
+loco = pd.DataFrame(data=total_local_social_cost, columns=['Cost [€/MWh]'])
 loco_at_all = loco.loc[loco['Cost [€/MWh]'] <= loco['Cost [€/MWh]'].quantile(cut_off), :]
 loco_at_all['target'] = 2
 loco_at_all['Cost Component'] = f'Total Local Social Cost'
@@ -124,7 +133,6 @@ plt.close()
 logging.info('Cost distributions plotted')
 
 # %% analyse social cost components
-import numpy as np
 qus = [0.9, 0.95, 0.99]
 soqu = pd.DataFrame(index=list(soco.data_vars), columns=qus)
 for var in soco.data_vars:

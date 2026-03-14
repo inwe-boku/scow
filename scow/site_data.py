@@ -20,10 +20,12 @@ def process_gip(gip_path, dissolve=True):
     # documented in https://www.gip.gv.at/assets/downloads/GIP_Standardbeschreibung_2.3.2_FINAL.pdf
     # street categories are explained in 2.3.2.6 Abschnittskategorie (GIP.EDGE.EDGECATEGORY)
     # convert to shapefiles
-    os.chdir(gip_path)
     subprocess.run(
         """ogr2ogr -f "ESRI shapefile" shp gip_network_ogd.gpkg -sql "select cast(EDGECAT as character(255)) from EDGE_OGD" -overwrite -dialect ogrsql""",
-        shell=True)
+        shell=True,
+        cwd=gip_path,
+        check=True,
+    )
 
     # read data
     gip_shp = gip_path / 'shp' / 'EDGE_OGD.shp'

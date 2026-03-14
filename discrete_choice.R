@@ -1,19 +1,7 @@
-if(!require(logitr)){
-    install.packages('logitr')
-    library(logitr)
-}
-if(!require(tidyverse)){
-    install.packages('tidyverse')
-    library(tidyverse)
-}
-if(!require(broom)){
-    install.packages('broom')
-    library(broom)
-}
-if(!require(parallel)){
-  install.packages('parallel')
-  library(parallel)
-}
+library(logitr)
+library(tidyverse)
+library(broom)
+library(parallel)
 
 DEBUG <- FALSE
 
@@ -184,13 +172,17 @@ message(
 )
 message("Cluster debug: NMB_CORES=", NMB_CORES)
 message("Cluster debug: master=127.0.0.1 port=default setup_strategy=sequential")
+rscript_path <- Sys.which("Rscript")
+if (rscript_path == "") {
+  stop("Rscript not found on PATH")
+}
 
 cl <- parallel::makePSOCKcluster(
   NMB_CORES,
   master = "127.0.0.1",
   setup_strategy = "sequential",
   outfile = "",
-  rscript = "/usr/local/bin/Rscript"
+  rscript = rscript_path
 )
 clusterExport(cl, c("geodat_noe", "zone_out", "zone_in"))
 clusterEvalQ(cl, library("logitr", quietly = T))

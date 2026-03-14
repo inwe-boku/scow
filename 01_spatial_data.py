@@ -20,41 +20,16 @@ from scow.site_data import (
     process_water_bodies,
     process_wind_turbine_locations,
 )
+from scow.stages import AREA_NAME, ECONOMICS, LOSS_FACTOR, TURBINES_2014, TURBINES_MODERN
 
 drvsupport.supported_drivers["LIBKML"] = "rw"
 
 touch = True
 
-AREA_NAME = "Niederösterreich"
 ATLAS_ROOT = repo / "data" / "atlas"
 SITE_ROOT = repo / "data" / "site"
 PROCESSED_ROOT = repo / "data" / "processed"
 PROCESSED_ROOT.mkdir(parents=True, exist_ok=True)
-
-TURBINES_2014 = [
-    "Enercon.E40.500",
-    "Enercon.E82.3000",
-    "Enercon.E101.3050",
-    "Enercon.E115.3000",
-    "Vestas.V100.1800",
-    "Vestas.V100.2000",
-    "Vestas.V112.3075",
-]
-TURBINES_MODERN = [
-    "Enercon.E138.3500",
-    "Enercon.E160.5560",
-    "Vestas.V150.4200",
-]
-
-LOSS_FACTOR = 0.71197
-ECONOMICS = {
-    "discount_rate": 0.05,
-    "lifetime_a": 25,
-    "om_fixed_eur_per_kw_a": 20.0,
-    "om_variable_eur_per_kwh": 0.008,
-    "bos_cost_share": 0.3,
-    "grid_connect_cost_eur_per_kw": 0.0,
-}
 
 
 @contextmanager
@@ -186,6 +161,10 @@ def _sanitize_netcdf_attrs(ds: xr.Dataset) -> xr.Dataset:
     for coord in sanitized.coords:
         sanitized[coord].attrs = {key: _coerce(value) for key, value in sanitized[coord].attrs.items()}
     return sanitized
+
+
+def _distance_unit_label(da: xr.DataArray):
+    return da.attrs.get("units") or da.attrs.get("unit")
 
 
 with timed_step("initialize atlas"):
@@ -423,10 +402,14 @@ with tempfile.TemporaryDirectory(prefix="scow_stage1_") as tmp:
         with timed_step("compute distances"):
             atlas.landscape.compute("distance", source=missing_distance_sources, if_exists="noop").materialize()
 
-    with timed_step("convert distances to km"):
-        for name in distance_names:
-            converted = atlas.landscape.convert_units(name, "km")
-            _stage_temp_raster(atlas, tmpdir, converted, name)
+    distance_names_needing_conversion = [
+        name for name in distance_names if _distance_unit_label(atlas.landscape.data[name]) != "km"
+    ]
+    if distance_names_needing_conversion:
+        with timed_step("convert distances to km"):
+            for name in distance_names_needing_conversion:
+                converted = atlas.landscape.convert_units(name, "km")
+                _stage_temp_raster(atlas, tmpdir, converted, name)
 
     # %% save non-scenario-specific exports to disk
     with timed_step("export processed atlases"):

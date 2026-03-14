@@ -1,6 +1,7 @@
 # %% imports
 import logging
 import subprocess
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -250,25 +251,30 @@ def calculate_num_turbines(num_turbines, lcoe_map, lcoe_thresh, space_px, max_tu
     return nturb
 
 
+def _extract_values_at_locations(array, l_idx, b_idx):
+    """Extract pairwise raster values without materializing an NxN intermediate."""
+    return array.to_numpy()[l_idx, b_idx]
+
+
 def locations_to_gdf(cost_array, locations, cost_name="LCOE", energy_array=None, power_array=None):
     if cost_array.chunks is not None:
         cost_array = cost_array.compute()
 
-    cost_at_locations = cost_array[locations['l'], locations['b']]
+    l_idx = locations["l"].to_numpy(dtype=np.int64)
+    b_idx = locations["b"].to_numpy(dtype=np.int64)
     cost_gdf = gpd.GeoDataFrame(
-        data=cost_at_locations.data.diagonal(),
-        columns=[cost_name],
-        geometry=gpd.points_from_xy(cost_at_locations.x, cost_at_locations.y),
-        crs=cost_array.rio.crs
+        data={cost_name: _extract_values_at_locations(cost_array, l_idx, b_idx)},
+        geometry=gpd.points_from_xy(cost_array["x"].to_numpy()[b_idx], cost_array["y"].to_numpy()[l_idx]),
+        crs=cost_array.rio.crs,
     )
     if energy_array is not None:
         if energy_array.chunks is not None:
             energy_array = energy_array.compute()
-        cost_gdf['Energy'] = energy_array[locations['l'], locations['b']].data.diagonal()
+        cost_gdf["Energy"] = _extract_values_at_locations(energy_array, l_idx, b_idx)
 
     if power_array is not None:
         if power_array.chunks is not None:
             power_array = power_array.compute()
-        cost_gdf['Power'] = power_array[locations['l'], locations['b']].data.diagonal()
+        cost_gdf["Power"] = _extract_values_at_locations(power_array, l_idx, b_idx)
 
     return cost_gdf.sort_values(by=cost_name).reset_index(drop=True)

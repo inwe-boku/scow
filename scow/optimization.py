@@ -52,7 +52,6 @@ def reconstruct_chunk(
             chunk_map = cost_df.iloc[:, j:i]
         else:
             chunk_map = cost_df.iloc[j:i, :]
-        chunk_map = chunk_map.fillna(0)
 
         resolved_num_turbines = calculate_num_turbines(
             num_turbines,
@@ -83,7 +82,7 @@ def candidate_frame(chunk_map):
     for l in chunk_map.index:
         for b in chunk_map.columns:
             cost = float(chunk_map.at[l, b])
-            if cost < 1:
+            if not np.isfinite(cost):
                 continue
             records.append({"l": int(l), "b": int(b), "cost": cost})
     candidates = pd.DataFrame.from_records(records)
