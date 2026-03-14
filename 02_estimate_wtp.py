@@ -1,20 +1,14 @@
 # %% imports
 import argparse
 
-from config import data_ver, num_runs, replication_seed, selection_criterion
-from scow.estimation import presets, run_estimation
+from config import study
+from scow.estimation import estimate_preferences, presets
 from scow.logging_utils import configure_script_logging
 
 
 def build_default_spec():
     """Build the canonical stage-2 spec from the current config module."""
-    return (
-        presets.baseline()
-        .for_scenario(data_ver)
-        .with_num_runs(int(num_runs))
-        .with_selection_criterion(selection_criterion)
-        .with_seed(replication_seed)
-    )
+    return study.estimation_spec()
 
 
 def parse_args(argv=None):
@@ -76,7 +70,7 @@ def main(argv=None):
     args = parse_args(argv)
     spec = build_spec_from_args(args)
     logger.info("Running stage 2 for scenario=%s method=%s num_runs=%s", spec.scenario, spec.method, spec.num_runs)
-    run_estimation(spec, compute=True, report=True)
+    estimate_preferences(spec, compute=True, report=True)
 
 
 if __name__ == "__main__":

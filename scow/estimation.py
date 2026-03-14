@@ -14,6 +14,13 @@ from scow.paths import (
     latex_valuation_path,
     parsimonious_name_path,
 )
+from scow.study import (
+    BASELINE_BINARY_VARIABLES,
+    BASELINE_FLOAT_VARIABLES,
+    BASELINE_PROTECTED_VARIABLES,
+    BASELINE_RESTRICTED_DATA_VARIABLES,
+    SUPPORTED_SCENARIOS,
+)
 from scow.tex_convert import (
     coeffs_to_latex,
     convert_names,
@@ -23,49 +30,9 @@ from scow.tex_convert import (
 )
 from scow.utils import leave_one_out, postprocess_spatialdc, subprocess_rscript
 
-SUPPORTED_SCENARIOS = {"2014", "modern"}
 SUPPORTED_METHODS = {"mnl_logitr"}
 SUPPORTED_SEARCH_MODES = {"single", "full_significant", "gts_leave_one_out"}
 SUPPORTED_SELECTION_CRITERIA = {"AIC", "BIC"}
-
-BASELINE_BINARY_VARIABLES = (
-    "airports_buff",
-    "alps_convention",
-    "broadleaved",
-    "coniferous",
-    "important_bird_areas",
-    "protected_areas:important_bird_areas",
-    "pastures",
-    "preservation",
-    "protected_areas",
-    "restricted_military_areas",
-    "water_bodies",
-)
-
-BASELINE_FLOAT_VARIABLES = (
-    "distance_buildings_in_greenland",
-    "distance_existing_turbines",
-    "distance_greenland_zonings",
-    "distance_other_building_land",
-    "distance_power_lines",
-    "distance_residential_buildings",
-    "distance_roads",
-    "elevation",
-    "min_lcoe",
-    "overnight_stays",
-    "slope",
-    "tree_cover_density",
-    "tree_cover_density:broadleaved",
-    "tree_cover_density:coniferous",
-)
-
-BASELINE_RESTRICTED_DATA_VARIABLES = (
-    "important_bird_areas",
-    "overnight_stays",
-    "protected_areas:important_bird_areas",
-)
-
-BASELINE_PROTECTED_VARIABLES = ("min_lcoe",)
 
 
 def _dedupe_preserve_order(values: tuple[str, ...] | list[str]) -> tuple[str, ...]:
@@ -303,6 +270,17 @@ class _PresetNamespace:
 
 
 presets = _PresetNamespace()
+
+
+def estimate_preferences(
+    spec: EstimationSpec,
+    *,
+    compute: bool = True,
+    report: bool = True,
+) -> "EstimationResult":
+    """Expressive project-local entrypoint for the canonical stage-2 workflow."""
+
+    return run_estimation(spec, compute=compute, report=report)
 
 
 def model_term_series(dataframe: pd.DataFrame, term: str) -> pd.Series | None:

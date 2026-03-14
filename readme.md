@@ -58,18 +58,29 @@ Configure the following settings in `config.py`:
 from pathlib import Path
 import shutil
 
+from scow.study import ScowStudy
+
 repo = Path(__file__).resolve().parent
-data_ver = "2014"  # "2014" for the time of zoning decision or "modern" for current wind turbines
+study = ScowStudy(
+    scenario="2014",          # "2014" or "modern"
+    num_runs=500,              # repeated discrete-choice iterations
+    selection_criterion="BIC", # "AIC" or "BIC"
+    seed=42,                   # stage-2 replication seed
+    spacing=3,                 # stage-4 spacing rule in pixels
+    num_turbines="auto",       # stage-4 turbine-count rule
+)
 
-num_runs = "500"  # number of iterations for discrete choice estimation
-selection_criterion = "BIC"  # options: "AIC" or "BIC"
-replication_seed = 42  # seed for repeated discrete-choice estimation
-
-spacing = 3  # minimum pixels between wind turbines for optimal location
-nturbines = "auto"  # automatic selection of deployed wind turbines
+data_ver = study.scenario
+num_runs = str(study.num_runs)
+selection_criterion = study.selection_criterion
+replication_seed = study.seed
+spacing = study.spacing
+nturbines = study.num_turbines
 
 rdir = Path(shutil.which("Rscript") or "Rscript")  # resolved from PATH at runtime
 ```
+
+The selected `study` is now the authoritative home for the current project defaults and assumptions. The legacy module-level aliases such as `data_ver`, `num_runs`, `spacing`, and `nturbines` are still exported for compatibility with the current scripts.
 
 `data/results` and `figures` are created automatically by the path helpers when downstream stages write outputs.
 

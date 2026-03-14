@@ -1,4 +1,4 @@
-from config import atlas_path, data_ver, repo
+from config import atlas_path, repo, study
 from scow.social_cost import build_social_cost_atlas
 
 
@@ -8,7 +8,7 @@ def main() -> None:
     build_social_cost_atlas(
         repo_root=repo,
         atlas_file=atlas_path,
-        scenario=data_ver,
+        scenario=study.scenario,
     )
 
 

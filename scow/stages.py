@@ -3,40 +3,7 @@ from typing import Mapping
 
 import cleo
 
-AREA_NAME = "Niederösterreich"
-
-TURBINES_2014 = [
-    "Enercon.E40.500",
-    "Enercon.E82.3000",
-    "Enercon.E101.3050",
-    "Enercon.E115.3000",
-    "Vestas.V100.1800",
-    "Vestas.V100.2000",
-    "Vestas.V112.3075",
-]
-TURBINES_MODERN = [
-    "Enercon.E138.3500",
-    "Enercon.E160.5560",
-    "Vestas.V150.4200",
-]
-
-LOSS_FACTOR = 0.71197
-ECONOMICS = {
-    "discount_rate": 0.05,
-    "lifetime_a": 25,
-    "om_fixed_eur_per_kw_a": 20.0,
-    "om_variable_eur_per_kwh": 0.008,
-    "bos_cost_share": 0.3,
-    "grid_connect_cost_eur_per_kw": 0.0,
-}
-
-
-def _turbines_for_scenario(scenario: str) -> list[str]:
-    if scenario == "2014":
-        return TURBINES_2014
-    if scenario == "modern":
-        return TURBINES_MODERN
-    raise ValueError(f"Unknown scenario: {scenario}")
+from scow.study import ScowStudy
 
 
 def load_atlas_for_analysis(
@@ -66,33 +33,34 @@ def load_atlas_for_analysis(
         )
 
     atlas = cleo.Atlas(atlas_root, "AUT", "EPSG:31287")
-    atlas.select(area=AREA_NAME, inplace=True)
-    atlas.wind.select(turbines=_turbines_for_scenario(scenario))
+    study = ScowStudy(scenario=scenario)
+    atlas.select(area=study.area_name, inplace=True)
+    atlas.wind.select(turbines=study.turbines)
 
     if "capacity_factors" not in atlas.wind.data.data_vars:
-        atlas.wind.compute("capacity_factors", loss_factor=LOSS_FACTOR).materialize(
+        atlas.wind.compute("capacity_factors", loss_factor=study.loss_factor).materialize(
             overwrite=True,
             allow_method_change=True,
         )
     if "lcoe" not in atlas.wind.data.data_vars:
         atlas.wind.compute(
             "lcoe",
-            cf={"loss_factor": LOSS_FACTOR},
-            economics=ECONOMICS,
+            cf={"loss_factor": study.loss_factor},
+            economics=study.economics,
         ).materialize(overwrite=True)
     if "min_lcoe" not in atlas.wind.data.data_vars:
         atlas.wind.data["min_lcoe"] = atlas.wind.data["lcoe"].min(dim="turbine").rename("min_lcoe")
     if require_optimal_power and "optimal_power" not in atlas.wind.data.data_vars:
         atlas.wind.compute(
             "optimal_power",
-            cf={"loss_factor": LOSS_FACTOR},
-            economics=ECONOMICS,
+            cf={"loss_factor": study.loss_factor},
+            economics=study.economics,
         ).materialize(overwrite=True)
     if require_optimal_energy and "optimal_energy" not in atlas.wind.data.data_vars:
         atlas.wind.compute(
             "optimal_energy",
-            cf={"loss_factor": LOSS_FACTOR},
-            economics=ECONOMICS,
+            cf={"loss_factor": study.loss_factor},
+            economics=study.economics,
         ).materialize(overwrite=True)
 
     return atlas

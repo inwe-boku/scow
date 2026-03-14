@@ -1,8 +1,5 @@
-from config import data_ver, repo
+from config import repo, study
 from scow.reporting import generate_reports
-
-AREA_NAME = "Niederösterreich"
-GENERATION_TARGET = 8.0
 
 
 def main() -> None:
@@ -10,9 +7,9 @@ def main() -> None:
 
     generate_reports(
         repo_root=repo,
-        scenario=data_ver,
-        area_name=AREA_NAME,
-        generation_target=GENERATION_TARGET,
+        scenario=study.scenario,
+        area_name=study.area_name,
+        generation_target=study.generation_target,
     )
 
 
