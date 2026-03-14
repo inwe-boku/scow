@@ -1,34 +1,13 @@
 import subprocess
-import shutil
 from pathlib import Path
 
 import pandas as pd
-import pytest
+
+from conftest import ensure_stage2_runtime
 
 
 BASELINE_TERMS = ["min_lcoe"]
 R_SCRIPT = Path(__file__).resolve().parents[1] / "discrete_choice.R"
-
-
-def _ensure_stage2_runtime():
-    if shutil.which("Rscript") is None:
-        pytest.skip("Rscript is not available")
-
-    command = [
-        "Rscript",
-        "--vanilla",
-        "-e",
-        (
-            'if (!requireNamespace("renv", quietly = TRUE)) quit(status = 1); '
-            'renv::load(project = ".", quiet = TRUE); '
-            'for (pkg in c("logitr", "tidyverse", "broom")) { '
-            'if (!requireNamespace(pkg, quietly = TRUE)) quit(status = 1) }'
-        ),
-    ]
-    result = subprocess.run(command, cwd=R_SCRIPT.parent, capture_output=True, text=True)
-    if result.returncode != 0:
-        pytest.skip("Stage-2 R runtime is not provisioned")
-
 
 def _write_design_matrix(path: Path):
     zone_in = pd.DataFrame(
@@ -63,7 +42,7 @@ def _run_discrete_choice(work_dir: Path, run_name: str):
 
 
 def test_stage2_same_seed_produces_identical_outputs(tmp_path):
-    _ensure_stage2_runtime()
+    ensure_stage2_runtime()
     (tmp_path / "data" / "processed").mkdir(parents=True)
     _write_design_matrix(tmp_path / "data" / "processed" / "dc_data_test.csv")
 
@@ -80,7 +59,7 @@ def test_stage2_same_seed_produces_identical_outputs(tmp_path):
 
 
 def test_stage2_rejects_invalid_seed_early(tmp_path):
-    _ensure_stage2_runtime()
+    ensure_stage2_runtime()
     (tmp_path / "data" / "processed").mkdir(parents=True)
     _write_design_matrix(tmp_path / "data" / "processed" / "dc_data_test.csv")
 

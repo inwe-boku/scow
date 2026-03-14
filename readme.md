@@ -31,6 +31,13 @@ Rscript --vanilla -e 'install.packages("renv", repos="https://cloud.r-project.or
 
 `discrete_choice.R` now bootstraps the project library from that lockfile at runtime, so later stage-2 runs and the focused stage-2 test use the tracked package set rather than whatever happens to be installed globally.
 
+The repository also tracks the standard `renv` activation files:
+
+- `.Rprofile`
+- `renv/activate.R`
+
+Those files support interactive and non-`--vanilla` R sessions. The canonical stage-2 pipeline still calls `Rscript --vanilla`, so the runtime guarantee for numbered-script execution remains the explicit bootstrap inside `discrete_choice.R`.
+
 The current locked stage-2 package surface includes at least:
 - `logitr`
 - `tidyverse`
@@ -85,15 +92,22 @@ Execute the scripts sequentially:
 
 4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, reusing validated chunk caches under `opt/` when possible and writing final results to `opt_locations_{data_ver}_{objective}.csv` and `opt_cost_{data_ver}_{objective}.csv` in `data/results`.
 
-5. **05_postprocess_sites.py**: Processes optimal wind turbine sites, computes local and total social costs, and plots maps of optimal locations and the social cost curve.
+   Stage 4 now also writes `opt_meta_{data_ver}_{objective}.json` sidecars and uses shared validators for the final `opt_locations_*` / `opt_cost_*` / `opt_meta_*` bundle contract.
+
+5. **05_postprocess_sites.py**: Processes optimal wind turbine sites, computes local and total social costs, and plots maps of optimal locations and the social cost curve. Stage 5 now loads stage-4 cost outputs through shared helpers instead of reading raw CSVs ad hoc.
 
 ### Validation
 The repository now includes a small focused validation suite covering:
 
 - stage-2 reproducibility
+- stage-2 artifact handoff on a tiny synthetic design matrix
+- stage-3 social-cost dataset contract checks
+- stage-4 final-output bundle validation and loading
 - stage-4 chunk candidate/conflict semantics
 - stage-5 generation-target accounting
+- stage-4 to stage-5 artifact handoff on synthetic outputs
+- IGW scraper cache-contract validation
 - on-demand output-path creation
 
 ### Logging
-The canonical numbered pipeline scripts do not configure a centralized file logger by default; progress and warnings are emitted to standard output and error.
+The numbered pipeline scripts now share a lightweight stderr logger with timestamped stage labels. This keeps the default workflow script-driven and console-oriented while making long stage runs and artifact writes easier to trace. The repository does not enable mandatory per-run log files by default.

@@ -1,8 +1,13 @@
 import json
 
 import pandas as pd
+import pytest
 
-from scow.scrape_igw_turbines import LEGACY_CACHE_NAME, download_and_process_igw_legacy_schema
+from scow.scrape_igw_turbines import (
+    LEGACY_CACHE_NAME,
+    download_and_process_igw_legacy_schema,
+    validate_legacy_igw_frame,
+)
 
 
 class _FakeResponse:
@@ -57,3 +62,27 @@ def test_download_and_process_igw_legacy_schema_writes_canonical_cache(monkeypat
     assert result.loc[0, "Name"] == "Pretul"
     assert result.loc[0, "Type"] == "E82 E4"
     assert result.loc[0, "Betreiber1"] == "Österreichische Bundesforste"
+
+
+def test_validate_legacy_igw_frame_rejects_missing_coordinates():
+    df = pd.DataFrame(
+        {
+            "Name": ["Broken"],
+            "Betreiber1": [""],
+            "Betreiber2": [""],
+            "n_Anlagen": [1],
+            "kW": [1000],
+            "Type": ["Foo"],
+            "Jahr": [2010],
+            "x": [15.0],
+            "lat": [47.0],
+            "lon": [None],
+            "url": [""],
+            "Hersteller": ["Bar"],
+            "Nabenhöhe": [80.0],
+            "Rotordurchmesser": [90.0],
+        }
+    )
+
+    with pytest.raises(ValueError, match="finite x, lon, and lat"):
+        validate_legacy_igw_frame(df)

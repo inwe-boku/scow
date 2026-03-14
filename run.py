@@ -1,7 +1,9 @@
 # %% imports
+from pathlib import Path
 import subprocess
 import sys
 from config import repo
+from scow.logging_utils import configure_script_logging
 
 scripts = [
     "01_spatial_data.py",
@@ -11,5 +13,9 @@ scripts = [
     "05_postprocess_sites.py",
 ]
 
+logger = configure_script_logging("run")
+
 for script in scripts:
-    subprocess.run([sys.executable, str(repo / script)], check=True)
+    logger.info("Launching %s", script)
+    subprocess.run([sys.executable, str(Path(repo) / script)], check=True)
+    logger.info("Completed %s", script)

@@ -11,6 +11,7 @@ from pathlib import Path
 from scow.scrape_igw_turbines import (
     download_and_process_igw_legacy_schema,
     normalize_legacy_igw_numeric_columns,
+    validate_legacy_igw_frame,
 )
 # from cleo.utils import download_file
 from datetime import datetime
@@ -344,11 +345,17 @@ def process_wind_turbine_locations(self):
     # --- scrape current IGW data (windrad-karte) and emit the legacy CSV schema ---
 
     cache_path = turbines_dir / "igwturbines.csv"
+
+    def _load_validated_igw_cache() -> pd.DataFrame:
+        try:
+            return validate_legacy_igw_frame(pd.read_csv(cache_path, sep=";", decimal=","))
+        except ValueError as exc:
+            raise RuntimeError(f"IGW turbine cache failed validation: {exc}") from exc
+
     if cache_path.exists():
-        igw = pd.read_csv(cache_path, sep=";", decimal=",")
-        igw = normalize_legacy_igw_numeric_columns(igw)
+        igw_df = _load_validated_igw_cache()
     else:
-        igw = download_and_process_igw_legacy_schema(turbines_dir)
+        igw_df = download_and_process_igw_legacy_schema(turbines_dir)
         logging.info("Download of wind turbine data complete")
 
     # --- merge wind turbine location data from IGW and BEV (unchanged except one bugfix) ---
@@ -361,8 +368,6 @@ def process_wind_turbine_locations(self):
     bev["points"] = bev["geometry"]
     bev["geometry"] = bev["geometry"].buffer(20)
 
-    # BUGFIX: use the dataframe we just read for points_from_xy (not a stale name)
-    igw_df = normalize_legacy_igw_numeric_columns(pd.read_csv(cache_path, sep=";", decimal=","))
     igw = gpd.GeoDataFrame(
         igw_df,
         geometry=gpd.points_from_xy(igw_df["lon"], igw_df["lat"]),

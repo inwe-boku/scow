@@ -1,39 +1,35 @@
 # %% Imports
-import logging
 import matplotlib.pyplot as plt
-import pandas as pd
 import geopandas as gpd
 import contextily as cx
 import xarray as xr
-from config import repo, atlas_path, data_ver
+from config import repo, data_ver
+from scow.artifact_validators import validate_soco_dataset, validate_stage4_costs
+from scow.logging_utils import configure_script_logging
 from scow.paths import (
     cost_curve_figure_path,
     latex_cost_comparison_path,
     map_turbines_figure_path,
-    opt_cost_path,
     soco_path,
 )
-from scow.postprocess_sites_helpers import annual_cost, build_cost_comparison, sites_to_target, to_geopandas
-from scow.stages import load_atlas_for_analysis
+from scow.postprocess_sites_helpers import annual_cost, build_cost_comparison, sites_to_target
+from scow.stage4_outputs import load_stage4_costs
 
 # %% Settings
 BL = 'Niederösterreich'
 GENERATION_TARGET = 8.00
 
 # %% Read optimization results and maps
+logger = configure_script_logging("stage5")
+logger.info("Loading stage-5 reporting inputs")
 state = gpd.read_file(repo / 'data' / 'site' / 'vgd' / 'vgd_oesterreich.shp')
 state = state[['BL', 'geometry']].dissolve(by='BL').reset_index()
 state = state[state.BL == BL]
 
-atlas = load_atlas_for_analysis({"atlas_path": atlas_path, "scenario": data_ver})
-social_cost = xr.open_dataset(soco_path(data_ver), engine="netcdf4")
-opt_cost_soco = pd.read_csv(opt_cost_path(data_ver, "soco"))
-opt_cost_loco = pd.read_csv(opt_cost_path(data_ver, "loco"))
-opt_cost_lcoe = pd.read_csv(opt_cost_path(data_ver, "lcoe"))
-
-opt_cost_soco = to_geopandas(opt_cost_soco)
-opt_cost_loco = to_geopandas(opt_cost_loco)
-opt_cost_lcoe = to_geopandas(opt_cost_lcoe)
+social_cost = validate_soco_dataset(xr.open_dataset(soco_path(data_ver), engine="netcdf4"))
+opt_cost_soco = validate_stage4_costs(load_stage4_costs(data_ver, "soco"), "soco")
+opt_cost_loco = validate_stage4_costs(load_stage4_costs(data_ver, "loco"), "loco")
+opt_cost_lcoe = validate_stage4_costs(load_stage4_costs(data_ver, "lcoe"), "lcoe")
 
 
 opt_cost_soco['lcoe'] = social_cost['min_lcoe'].sel(x=opt_cost_soco.geometry.x.to_xarray(),
@@ -77,13 +73,13 @@ for objective, df in zip(["lcoe", "loco", "soco"], [opt_cost_lcoe, opt_cost_loco
     try:
         cx.add_basemap(ax, crs=state.crs, source=cx.providers.BasemapAT.terrain, zoom=10)
     except Exception as exc:
-        logging.warning("Basemap fetch failed for %s: %s", objective, exc)
+        logger.warning("Basemap fetch failed for %s: %s", objective, exc)
     ax.set_axis_off()
     plt.tight_layout()
     plt.savefig(map_turbines_figure_path(objective), dpi=300)
     plt.close()
 
-logging.info('Maps of optimal wind turbine sites saved')
+logger.info('Maps of optimal wind turbine sites saved')
 
 # %% Plot social cost curve
 fig, ax = plt.subplots(figsize=(8, 5))
@@ -98,4 +94,4 @@ plt.tight_layout()
 plt.savefig(cost_curve_figure_path(), dpi=300)
 plt.close()
 
-logging.info('Social cost curve saved')
+logger.info('Social cost curve saved')

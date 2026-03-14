@@ -1,10 +1,11 @@
 # %% imports
 import json
-import logging
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import xarray as xr
+from scow.artifact_validators import validate_soco_dataset
+from scow.logging_utils import configure_script_logging
 from scow.optimization import final_output_metadata, solve_objective_chunked
 from scow.paths import opt_cost_path, opt_locations_path, opt_metadata_path, soco_path
 from scow.stages import load_atlas_for_analysis
@@ -63,6 +64,8 @@ def objective_cost_array(social_cost, objective):
     raise ValueError(f"Unknown stage-4 objective: {objective}")
 
 # %%
+logger = configure_script_logging("stage4")
+logger.info("Loading atlas and social-cost inputs for stage 4")
 atlas = load_atlas_for_analysis(
     {"atlas_path": atlas_path, "scenario": data_ver},
     require_optimal_power=True,
@@ -72,9 +75,10 @@ atlas = load_atlas_for_analysis(
 power = atlas.wind.data.optimal_power.compute()
 energy = load_energy_for_stage4(atlas, power)
 
-social_cost = xr.open_dataset(soco_path(data_ver))
+social_cost = validate_soco_dataset(xr.open_dataset(soco_path(data_ver)))
 
 for objective, cost_threshold in OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH.items():
+    logger.info("Solving objective %s with threshold %s €/MWh", objective, cost_threshold)
     cost_array = objective_cost_array(social_cost, objective)
     locations_path = opt_locations_path(data_ver, objective)
     cost_path = opt_cost_path(data_ver, objective)
@@ -124,5 +128,4 @@ for objective, cost_threshold in OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH.items():
     metadata["locations_file"] = locations_path.name
     metadata["cost_file"] = cost_path.name
     metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
-    logging.info(f"Optimal cost for {objective} written to: "
-                 f"{str(cost_path)}")
+    logger.info("Wrote stage-4 costs for %s to %s", objective, cost_path)

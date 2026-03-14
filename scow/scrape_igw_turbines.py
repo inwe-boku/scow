@@ -15,6 +15,22 @@ from bs4 import BeautifulSoup
 
 IGW_PAGE_URL = "https://www.igwindkraft.at/aktuelles/windrad-karte"
 LEGACY_CACHE_NAME = "igwturbines.csv"
+LEGACY_REQUIRED_COLUMNS = [
+    "Name",
+    "Betreiber1",
+    "Betreiber2",
+    "n_Anlagen",
+    "kW",
+    "Type",
+    "Jahr",
+    "x",
+    "lat",
+    "lon",
+    "url",
+    "Hersteller",
+    "Nabenhöhe",
+    "Rotordurchmesser",
+]
 
 
 def _to_float_de(value: str | None) -> float:
@@ -126,6 +142,20 @@ def normalize_legacy_igw_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def validate_legacy_igw_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Validate the canonical legacy IGW cache schema."""
+    missing = [col for col in LEGACY_REQUIRED_COLUMNS if col not in df.columns]
+    if missing:
+        raise ValueError(f"IGW legacy cache is missing required columns: {', '.join(missing)}")
+
+    validated = normalize_legacy_igw_numeric_columns(df)
+
+    if validated[["x", "lon", "lat"]].isna().any().any():
+        raise ValueError("IGW legacy cache requires finite x, lon, and lat for every cached row")
+
+    return validated[LEGACY_REQUIRED_COLUMNS].copy()
+
+
 def _request_headers() -> dict[str, str]:
     return {
         "User-Agent": (
@@ -234,7 +264,7 @@ def _legacy_frame_from_wheels(wheels: dict) -> tuple[pd.DataFrame, list[dict]]:
     igw[["Nabenhöhe", "Rotordurchmesser"]] = (
         igw[["Nabenhöhe", "Rotordurchmesser"]].replace("", np.nan).astype(float)
     )
-    return normalize_legacy_igw_numeric_columns(igw), raw_rows
+    return igw, raw_rows
 
 
 def download_and_process_igw_legacy_schema(turbines_dir: Path) -> pd.DataFrame:
@@ -251,6 +281,7 @@ def download_and_process_igw_legacy_schema(turbines_dir: Path) -> pd.DataFrame:
         encoding="utf-8",
     )
     cache_path = turbines_dir / LEGACY_CACHE_NAME
+    igw = validate_legacy_igw_frame(igw)
     igw.to_csv(cache_path, sep=";", decimal=",", encoding="utf-8", index=False)
     logging.info("Wrote %s rows to %s", len(igw), cache_path)
     return igw

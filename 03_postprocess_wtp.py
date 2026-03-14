@@ -1,10 +1,10 @@
 # %% imports
-import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from scow.logging_utils import configure_script_logging
 from scow.postprocess_wtp_helpers import (
     build_interaction_layers,
     compute_social_cost_dataset,
@@ -22,6 +22,7 @@ from scow.stages import load_atlas_for_analysis
 from scow.utils import postprocess_spatialdc
 from config import repo, atlas_path, data_ver
 
+logger = configure_script_logging("stage3")
 
 with open(parsimonious_name_path(data_ver), "r") as f:
     parsimonious_name = f.read()
@@ -43,6 +44,7 @@ spatial_data = landscape_data[list(parsimonious_coeffs.index)]
 # %% compute social cost
 soco = compute_social_cost_dataset(spatial_data, parsimonious_coeffs["valuation"])
 soco.to_netcdf(soco_path(data_ver))
+logger.info("Wrote social-cost dataset to %s", soco_path(data_ver))
 
 # %% Plot map of local social cost and LCOE
 lcoe = soco['min_lcoe']
@@ -65,7 +67,7 @@ plt.tight_layout()
 plt.savefig(map_lcoe_figure_path(data_ver), dpi=300)
 plt.close()
 
-logging.info('Maps of Local Social Cost and LCOE plotted')
+logger.info('Maps of Local Social Cost and LCOE plotted')
 
 # %% Plot distributions of LCOE, local social cost, and total cost
 cut_off = 0.999  # 0.999
@@ -86,7 +88,7 @@ plt.tight_layout()
 plt.savefig(dist_soco_figure_path(data_ver), dpi=300)
 plt.close()
 
-logging.info('Cost distributions plotted')
+logger.info('Cost distributions plotted')
 
 # %% analyse social cost components
 qus = [0.9, 0.95, 0.99]
@@ -118,4 +120,4 @@ for j in range(i+1, num_rows * num_cols):
 plt.tight_layout()
 plt.savefig(soco_facet_figure_path(data_ver), dpi=300)
 plt.close()
-logging.info("Facet of social cost variables plotted")
+logger.info("Facet of social cost variables plotted")
