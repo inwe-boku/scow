@@ -24,9 +24,6 @@ def _flat_finite(da):
     return values[np.isfinite(values)]
 
 
-# %% settings
-sens_name = "" if data_ver == "2014" else "_modern"
-
 with open(parsimonious_name_path(data_ver), "r") as f:
     parsimonious_name = f.read()
 
@@ -41,8 +38,8 @@ atlas = load_atlas_for_analysis({"atlas_path": atlas_path, "scenario": data_ver}
 landscape_data = atlas.landscape.data
 for var in list(parsimonious_coeffs.index):
     if ":" in var:
-        vars = var.split(":")
-        landscape_data[var] = landscape_data[vars[0]] * landscape_data[vars[1]]
+        parts = var.split(":")
+        landscape_data[var] = landscape_data[parts[0]] * landscape_data[parts[1]]
 
 if "min_lcoe" not in landscape_data.data_vars:
     landscape_data = landscape_data.merge(atlas.wind.data["min_lcoe"].compute())
@@ -73,16 +70,12 @@ fig, axs = plt.subplots(figsize=(7, 5))
 soco["Local Social Cost"].plot(ax=axs, robust=True)
 axs.set_title("")
 axs.axis('off')
-axs.set_title("")
-axs.axis('off')
 plt.tight_layout()
 plt.savefig(map_soco_figure_path(data_ver), dpi=300)
 plt.close()
 
 fig, axs = plt.subplots(figsize=(7, 5))
 lcoe.plot(ax=axs, robust=True)
-axs.set_title("")
-axs.axis('off')
 axs.set_title("")
 axs.axis('off')
 plt.tight_layout()

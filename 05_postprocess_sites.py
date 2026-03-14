@@ -2,7 +2,6 @@
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-import netCDF4
 import pandas as pd
 import geopandas as gpd
 from shapely import wkt
@@ -20,12 +19,7 @@ from scow.stages import load_atlas_for_analysis
 
 # %% Settings
 BL = 'Niederösterreich'
-country = 'AUT'
-model_spec = 'base'  # ['parsimonious', 'base']
-scenario = 'cost'
-year = 2014  # [2014, 'modern']
 GENERATION_TARGET = 8.00
-sens_name = "" if data_ver == "2014" else f"_{data_ver}"
 
 # %% Read optimization results and maps
 state = gpd.read_file(repo / 'data' / 'site' / 'vgd' / 'vgd_oesterreich.shp')
@@ -41,7 +35,7 @@ opt_cost_lcoe = pd.read_csv(opt_cost_path(data_ver, "lcoe"))
 
 # %% Convert to GeoDataFrame
 def to_geopandas(df):
-    df.geometry = df.geometry.apply(wkt.loads)
+    df["geometry"] = df["geometry"].apply(wkt.loads)
     cols = [c for c in list(df.columns) if c not in ['geometry', 'Unnamed: 0']]
     df = gpd.GeoDataFrame(geometry=df['geometry'], data=df[cols])
     return df
@@ -122,18 +116,16 @@ latex_cost_comparison_path().write_text(latex_coco_without_header_footer)
 
 
 # %% Plot maps of spatial wind turbine allocations
-for df, filename in zip([opt_cost_lcoe, opt_cost_loco, opt_cost_soco],
-                        ['map_turbines_lcoe.png', 'map_turbines_loco.png', 'map_turbines_soco.png']):
+for objective, df in zip(["lcoe", "loco", "soco"], [opt_cost_lcoe, opt_cost_loco, opt_cost_soco]):
     fig, ax = plt.subplots(figsize=(8, 5))
     state.plot(ax=ax, alpha=0.3, edgecolor='k')
     df.loc[sites_to_target(df, GENERATION_TARGET)].plot(ax=ax, color='red', markersize=2)
     try:
         cx.add_basemap(ax, crs=state.crs, source=cx.providers.BasemapAT.terrain, zoom=10)
     except Exception as exc:
-        logging.warning("Basemap fetch failed for %s: %s", filename, exc)
+        logging.warning("Basemap fetch failed for %s: %s", objective, exc)
     ax.set_axis_off()
     plt.tight_layout()
-    objective = filename.removeprefix("map_turbines_").removesuffix(".png")
     plt.savefig(map_turbines_figure_path(objective), dpi=300)
     plt.close()
 

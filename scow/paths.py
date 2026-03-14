@@ -30,7 +30,9 @@ def figures_dir() -> Path:
 
 
 def opt_dir() -> Path:
-    return repo / "opt"
+    path = repo / "opt"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def design_matrix_path(scenario: str) -> Path:
