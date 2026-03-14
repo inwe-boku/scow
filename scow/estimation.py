@@ -10,6 +10,7 @@ from scow.paths import (
     coefs_path,
     design_matrix_path,
     latex_estimates_path,
+    loglik_path,
     latex_summary_stats_path,
     latex_valuation_path,
     parsimonious_name_path,
