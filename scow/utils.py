@@ -1,4 +1,5 @@
 # %% imports
+import json
 import logging
 import subprocess
 from pathlib import Path
@@ -7,7 +8,7 @@ import pandas as pd
 import geopandas as gpd
 from scipy.stats import t
 from config import rdir, replication_seed
-from scow.paths import coefs_path, loglik_path
+from scow.paths import coefs_path, loglik_path, stage2_metadata_path
 
 
 def _raise_if_nan(frame, columns, run_name, artifact_name):
@@ -34,11 +35,21 @@ def _raise_if_nan_series(series, labels, run_name, artifact_name):
     )
 
 
-def _cached_run_matches_terms(data_file, run_name, expected_terms, output_label=None):
+def _cached_run_matches_terms(
+    data_file,
+    run_name,
+    expected_terms,
+    *,
+    num_runs,
+    seed,
+    integer_count,
+    output_label=None,
+):
     coef_file = coefs_path(data_file, _artifact_run_name(run_name), output_label=output_label)
     loglik_file = loglik_path(data_file, _artifact_run_name(run_name), output_label=output_label)
+    metadata_file = stage2_metadata_path(data_file, _artifact_run_name(run_name), output_label=output_label)
 
-    if not coef_file.exists() or not loglik_file.exists():
+    if not coef_file.exists() or not loglik_file.exists() or not metadata_file.exists():
         return False
 
     ests = pd.read_csv(coef_file)
@@ -56,6 +67,23 @@ def _cached_run_matches_terms(data_file, run_name, expected_terms, output_label=
     if set(required_stats) - set(loglik.columns):
         return False
     if loglik[required_stats].isna().any().any():
+        return False
+
+    try:
+        metadata = json.loads(metadata_file.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    if metadata.get("scenario") != data_file:
+        return False
+    if metadata.get("run_name") != _artifact_run_name(run_name):
+        return False
+    if metadata.get("num_runs") != int(num_runs):
+        return False
+    if metadata.get("seed") != int(seed):
+        return False
+    if metadata.get("integer_count") != int(integer_count):
+        return False
+    if metadata.get("variables") != list(expected_terms):
         return False
 
     return True
@@ -126,13 +154,23 @@ def subprocess_rscript(
     if output_label is not None:
         source_coef = Path(work_dir) / "data" / "results" / f"spatialdc_coefs_{datafile}_{temp_run_name}.csv"
         source_loglik = Path(work_dir) / "data" / "results" / f"spatialdc_loglik_{datafile}_{temp_run_name}.csv"
+        source_meta = Path(work_dir) / "data" / "results" / f"spatialdc_meta_{datafile}_{temp_run_name}.json"
         target_coef = coefs_path(datafile, artifact_run_name, output_label=output_label)
         target_loglik = loglik_path(datafile, artifact_run_name, output_label=output_label)
+        target_meta = stage2_metadata_path(datafile, artifact_run_name, output_label=output_label)
         source_coef.replace(target_coef)
         source_loglik.replace(target_loglik)
+        source_meta.replace(target_meta)
 
 
 def postprocess_spatialdc(work_dir, datafile, run_name, output_label=None):
+    """Summarize repeated stage-2 fits into the legacy coefficient/statistics surface.
+
+    The returned `tstat`, `pval`, and `significance` columns are retained for
+    compatibility with the current pipeline, but they summarize across-run
+    coefficient stability under repeated negative sampling. They are not the
+    classical single-fit MLE standard errors reported by `logitr`.
+    """
     artifact_run_name = _artifact_run_name(run_name)
     ests = pd.read_csv(coefs_path(datafile, artifact_run_name, output_label=output_label))
     _raise_if_nan(ests, ['estimate', 'std.error', 'statistic', 'p.value'], run_name, 'raw coefficient output')
@@ -170,6 +208,7 @@ def leave_one_out(
     work_dir,
     data_file,
     num_runs,
+    seed=replication_seed,
     compute=True,
     protected_variables=None,
     output_label=None,
@@ -206,6 +245,9 @@ def leave_one_out(
                 data_file,
                 artifact_name,
                 reduced_vars,
+                num_runs=num_runs,
+                seed=seed,
+                integer_count=last_int,
                 output_label=output_label,
             )
             if not cached:
@@ -216,6 +258,7 @@ def leave_one_out(
                     artifact_name,
                     last_int,
                     reduced_vars,
+                    seed=seed,
                     output_label=output_label,
                 )
 

@@ -20,7 +20,7 @@ from scow.site_data import (
     process_water_bodies,
     process_wind_turbine_locations,
 )
-from scow.stages import AREA_NAME, ECONOMICS, LOSS_FACTOR, TURBINES_2014, TURBINES_MODERN
+from scow.study import AREA_NAME, ECONOMICS, LOSS_FACTOR, TURBINES_2014, TURBINES_MODERN
 
 drvsupport.supported_drivers["LIBKML"] = "rw"
 

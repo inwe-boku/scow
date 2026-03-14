@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -53,9 +54,13 @@ def test_stage2_same_seed_produces_identical_outputs(tmp_path):
     coef_b = (tmp_path / "data" / "results" / "spatialdc_coefs_test_repro_b.csv").read_bytes()
     loglik_a = (tmp_path / "data" / "results" / "spatialdc_loglik_test_repro_a.csv").read_bytes()
     loglik_b = (tmp_path / "data" / "results" / "spatialdc_loglik_test_repro_b.csv").read_bytes()
+    metadata_a = json.loads((tmp_path / "data" / "results" / "spatialdc_meta_test_repro_a.json").read_text())
+    metadata_b = json.loads((tmp_path / "data" / "results" / "spatialdc_meta_test_repro_b.json").read_text())
 
     assert coef_a == coef_b
     assert loglik_a == loglik_b
+    assert metadata_a["seed"] == 42
+    assert metadata_b["seed"] == 42
 
 
 def test_stage2_rejects_invalid_seed_early(tmp_path):

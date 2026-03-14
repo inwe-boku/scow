@@ -42,6 +42,7 @@ The current locked stage-2 package surface includes at least:
 - `logitr`
 - `tidyverse`
 - `broom`
+- `jsonlite`
 
 To run the focused validation suite from the Python environment:
 
@@ -91,6 +92,8 @@ Execute the scripts sequentially:
 
 2. **02_estimate_wtp.py**: A Python-first stage-2 driver around R code in `discrete_choice.R`, producing files like `spatialdc_coefs_{datafile}_{run_name}.csv` in `data/results`.
 
+   Stage 2 now also writes `spatialdc_meta_{datafile}_{run_name}.json` sidecars so repeated model-search runs only reuse cached artifacts when the scenario, seed, run count, integer partition, and exact term list still match.
+
    The primary configuration surface is now the Python `EstimationSpec` / preset API in `scow.estimation`. The script still runs directly with no arguments, and also supports a thin CLI for common overrides, for example:
 
    ```bash
@@ -98,6 +101,8 @@ Execute the scripts sequentially:
    ```
 
    For noncanonical experimental runs from Python, use an explicit `output_label` so experimental artifacts do not overwrite the canonical baseline namespace.
+
+   The legacy `pval` / significance-star outputs are retained for compatibility with the current tables and selection loop, but they summarize coefficient stability across repeated negative samples rather than classical single-fit logit inference.
 
 3. **03_postprocess_wtp.py**: Computes the local social-cost artifact and writes `soco.nc` in `data/results`.
 

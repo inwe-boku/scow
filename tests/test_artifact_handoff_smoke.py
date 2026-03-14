@@ -43,6 +43,7 @@ def test_stage2_artifact_handoff_smoke(tmp_path):
 
     assert (tmp_path / "data" / "results" / "spatialdc_coefs_test_smoke.csv").exists()
     assert (tmp_path / "data" / "results" / "spatialdc_loglik_test_smoke.csv").exists()
+    assert (tmp_path / "data" / "results" / "spatialdc_meta_test_smoke.json").exists()
 
 
 def test_stage4_to_stage5_artifact_handoff_smoke(tmp_path, monkeypatch):

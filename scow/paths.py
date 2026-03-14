@@ -65,6 +65,15 @@ def loglik_path(scenario: str, run_name: str, output_label: str | None = None) -
     return results_dir() / filename
 
 
+def stage2_metadata_path(scenario: str, run_name: str, output_label: str | None = None) -> Path:
+    label_segment = _label_segment(output_label)
+    if label_segment:
+        filename = f"spatialdc_meta_{scenario}{label_segment}__{run_name}.json"
+    else:
+        filename = f"spatialdc_meta_{scenario}_{run_name}.json"
+    return results_dir() / filename
+
+
 def parsimonious_name_path(scenario: str, output_label: str | None = None) -> Path:
     return repo / f"parsimonious_name{_scenario_suffix(scenario)}{_label_segment(output_label)}.txt"
 

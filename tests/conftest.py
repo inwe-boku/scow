@@ -24,7 +24,7 @@ def ensure_stage2_runtime():
         (
             'if (!requireNamespace("renv", quietly = TRUE)) quit(status = 1); '
             'renv::load(project = ".", quiet = TRUE); '
-            'for (pkg in c("logitr", "tidyverse", "broom")) { '
+            'for (pkg in c("logitr", "tidyverse", "broom", "jsonlite")) { '
             'if (!requireNamespace(pkg, quietly = TRUE)) quit(status = 1) }'
         ),
     ]

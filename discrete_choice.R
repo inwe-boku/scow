@@ -130,7 +130,7 @@ main <- function() {
   setwd(work_dir)
 
   geodat_noe <- read_csv(sprintf('data/processed/dc_data_%s.csv', datafile))
-  geodat_noe <- mutate(geodat_noe, zoning = replace(zoning, zoning < 1, 0))
+  geodat_noe <- mutate(geodat_noe, zoning = if_else(zoning > 0, 1L, 0L))
   geodat_noe <- geodat_noe %>% mutate(across(any_of(integer_model_vars), as.integer))
 
   interaction_terms <- base_mod[grepl(":", base_mod)]
@@ -236,6 +236,19 @@ main <- function() {
   dir.create("data/results", recursive = TRUE, showWarnings = FALSE)
   write_csv(coefs, sprintf("data/results/spatialdc_coefs_%s_%s.csv", datafile, specif))
   write_csv(modstats, sprintf("data/results/spatialdc_loglik_%s_%s.csv", datafile, specif))
+  jsonlite::write_json(
+    list(
+      scenario = datafile,
+      run_name = specif,
+      num_runs = num_runs,
+      seed = seed,
+      integer_count = integer_count,
+      variables = restore_colons(base_mod, colons_mapping)
+    ),
+    sprintf("data/results/spatialdc_meta_%s_%s.json", datafile, specif),
+    auto_unbox = TRUE,
+    pretty = FALSE
+  )
 }
 
 main()

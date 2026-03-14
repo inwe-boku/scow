@@ -657,6 +657,7 @@ def run_estimation(spec: EstimationSpec, compute: bool = True, report: bool = Tr
                     repo,
                     spec.scenario,
                     str(spec.num_runs),
+                    seed=spec.seed,
                     compute=compute,
                     protected_variables=set(spec.protected_variables),
                     output_label=spec.output_label,
