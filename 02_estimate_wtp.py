@@ -2,13 +2,28 @@
 import argparse
 
 from config import study
-from scow.estimation import estimate_preferences, presets
+from scow.estimation import estimate_preferences_for_study, presets
 from scow.logging_utils import configure_script_logging
+from social_cost_inference.estimation import EstimationRequest
 
 
 def build_default_spec():
     """Build the canonical stage-2 spec from the current config module."""
     return study.estimation_spec()
+
+
+def build_request_from_spec(spec) -> EstimationRequest:
+    """Map the current stage-2 spec onto the reusable request vocabulary."""
+
+    return EstimationRequest(
+        scenario=spec.scenario,
+        method=spec.method,
+        search_mode=spec.search_mode,
+        num_runs=spec.num_runs,
+        selection_criterion=spec.selection_criterion,
+        seed=spec.seed,
+        output_label=spec.output_label,
+    )
 
 
 def parse_args(argv=None):
@@ -69,8 +84,9 @@ def main(argv=None):
     logger = configure_script_logging("stage2")
     args = parse_args(argv)
     spec = build_spec_from_args(args)
+    request = build_request_from_spec(spec)
     logger.info("Running stage 2 for scenario=%s method=%s num_runs=%s", spec.scenario, spec.method, spec.num_runs)
-    estimate_preferences(spec, compute=True, report=True)
+    estimate_preferences_for_study(study, request, compute=True, report=True)
 
 
 if __name__ == "__main__":

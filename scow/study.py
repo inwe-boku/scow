@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from social_cost_inference.studies import SpatialDecisionStudy
+
 AREA_NAME = "Niederösterreich"
 
 SUPPORTED_SCENARIOS = {"2014", "modern"}
@@ -78,7 +80,7 @@ OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH = {
 
 
 @dataclass(frozen=True)
-class ScowStudy:
+class ScowStudy(SpatialDecisionStudy):
     """Project-local study definition for the current SCOW workflow."""
 
     scenario: str

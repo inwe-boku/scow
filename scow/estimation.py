@@ -21,6 +21,12 @@ from scow.study import (
     BASELINE_RESTRICTED_DATA_VARIABLES,
     SUPPORTED_SCENARIOS,
 )
+from social_cost_inference.estimation import (
+    DecisionEstimator,
+    EstimationArtifacts,
+    EstimationRequest,
+)
+from social_cost_inference.studies import SpatialDecisionStudy
 from scow.tex_convert import (
     coeffs_to_latex,
     convert_names,
@@ -272,6 +278,58 @@ class _PresetNamespace:
 presets = _PresetNamespace()
 
 
+def estimation_request_to_spec(
+    study: SpatialDecisionStudy,
+    request: EstimationRequest,
+) -> EstimationSpec:
+    """Map a reusable stage-2 request onto the current SCOW estimation spec."""
+
+    spec = (
+        study.estimation_spec()
+        .for_scenario(request.scenario)
+        .using_method(request.method)
+        .with_num_runs(request.num_runs)
+        .with_selection_criterion(request.selection_criterion)
+        .with_seed(request.seed)
+        .with_output_label(request.output_label)
+    )
+    if request.search_mode == "single":
+        return spec.single()
+    if request.search_mode == "full_significant":
+        return spec.full_significant()
+    if request.search_mode == "gts_leave_one_out":
+        return spec.gts_leave_one_out()
+    raise ValueError(f"Unsupported search mode: {request.search_mode}")
+
+
+def estimation_result_to_artifacts(result: EstimationResult) -> EstimationArtifacts:
+    """Map the current SCOW estimation result onto the reusable artifact handle."""
+
+    return EstimationArtifacts(
+        scenario=result.spec.scenario,
+        selected_run_name=result.selected_run_name,
+        output_label=result.spec.output_label,
+    )
+
+
+class LogitBootstrapEstimator:
+    """Current SCOW stage-2 estimator implemented through the R/logitr path."""
+
+    name = "mnl_logitr"
+
+    def estimate_preferences(
+        self,
+        study: SpatialDecisionStudy,
+        request: EstimationRequest,
+        *,
+        compute: bool = True,
+        report: bool = True,
+    ) -> EstimationArtifacts:
+        spec = estimation_request_to_spec(study, request)
+        result = run_estimation(spec, compute=compute, report=report)
+        return estimation_result_to_artifacts(result)
+
+
 def estimate_preferences(
     spec: EstimationSpec,
     *,
@@ -281,6 +339,25 @@ def estimate_preferences(
     """Expressive project-local entrypoint for the canonical stage-2 workflow."""
 
     return run_estimation(spec, compute=compute, report=report)
+
+
+def estimate_preferences_for_study(
+    study: SpatialDecisionStudy,
+    request: EstimationRequest,
+    *,
+    compute: bool = True,
+    report: bool = True,
+    estimator: DecisionEstimator | None = None,
+) -> EstimationArtifacts:
+    """Live stage-2 path routed through the reusable request/artifact vocabulary."""
+
+    active_estimator = LogitBootstrapEstimator() if estimator is None else estimator
+    return active_estimator.estimate_preferences(
+        study,
+        request,
+        compute=compute,
+        report=report,
+    )
 
 
 def model_term_series(dataframe: pd.DataFrame, term: str) -> pd.Series | None:
