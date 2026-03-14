@@ -1,10 +1,8 @@
 # %% Imports
 import logging
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely import wkt
 import contextily as cx
 import xarray as xr
 from config import repo, atlas_path, data_ver
@@ -15,6 +13,7 @@ from scow.paths import (
     opt_cost_path,
     soco_path,
 )
+from scow.postprocess_sites_helpers import annual_cost, build_cost_comparison, sites_to_target, to_geopandas
 from scow.stages import load_atlas_for_analysis
 
 # %% Settings
@@ -32,41 +31,9 @@ opt_cost_soco = pd.read_csv(opt_cost_path(data_ver, "soco"))
 opt_cost_loco = pd.read_csv(opt_cost_path(data_ver, "loco"))
 opt_cost_lcoe = pd.read_csv(opt_cost_path(data_ver, "lcoe"))
 
-
-# %% Convert to GeoDataFrame
-def to_geopandas(df):
-    df["geometry"] = df["geometry"].apply(wkt.loads)
-    cols = [c for c in list(df.columns) if c not in ['geometry', 'Unnamed: 0']]
-    df = gpd.GeoDataFrame(geometry=df['geometry'], data=df[cols])
-    return df
-
 opt_cost_soco = to_geopandas(opt_cost_soco)
 opt_cost_loco = to_geopandas(opt_cost_loco)
 opt_cost_lcoe = to_geopandas(opt_cost_lcoe)
-
-
-# %%  Compute cost at locations minimizing social cost
-def sites_to_target(df, target, cumulative_col='CumSumEnergy'):
-    """Return a positional mask including the first turbine that reaches the target."""
-    reached = df[cumulative_col].to_numpy() >= target
-    if reached.any():
-        cutoff_pos = int(reached.argmax())
-        mask = np.zeros(len(df), dtype=bool)
-        mask[:cutoff_pos + 1] = True
-        return mask
-    return np.ones(len(df), dtype=bool)
-
-
-def annual_cost(df):
-    """
-    Calculate the annual cost in million euros
-    :param df:
-    :return:
-    """
-    df['Annual Social Cost'] = df['soco'] * df['Energy'] / 1000
-    df['Annual Local Social Cost'] = df['loco'] * df['Energy'] / 1000
-    df['Annual Private Cost'] = df['lcoe'] * df['Energy'] / 1000
-    return df
 
 
 opt_cost_soco['lcoe'] = social_cost['min_lcoe'].sel(x=opt_cost_soco.geometry.x.to_xarray(),
@@ -93,20 +60,7 @@ opt_cost_loco['soco'] = opt_cost_loco['lcoe'] + opt_cost_loco['loco']
 opt_cost_loco = annual_cost(opt_cost_loco)
 
 # %% Compute total social cost
-cost_comparison = pd.DataFrame(index=["Private Cost", "Social Cost"],
-                               columns=["Wind Turbines", "Local Social Cost", "Private Cost", "Total Local Social Cost"])
-# number of wind turbines
-turbine_sites_lcoe = sites_to_target(opt_cost_lcoe, GENERATION_TARGET)
-cost_comparison.loc["Private Cost", "Wind Turbines"] = turbine_sites_lcoe.sum()
-cost_comparison.loc["Private Cost", "Private Cost"] = opt_cost_lcoe.loc[turbine_sites_lcoe, "Annual Private Cost"].sum()
-cost_comparison.loc["Private Cost", "Local Social Cost"] = opt_cost_lcoe.loc[turbine_sites_lcoe, "Annual Local Social Cost"].sum()
-cost_comparison.loc["Private Cost", "Total Local Social Cost"] = opt_cost_lcoe.loc[turbine_sites_lcoe, "Annual Social Cost"].sum()
-
-turbine_sites_soco = sites_to_target(opt_cost_soco, GENERATION_TARGET)
-cost_comparison.loc["Social Cost", "Wind Turbines"] = turbine_sites_soco.sum()
-cost_comparison.loc["Social Cost", "Private Cost"] = opt_cost_soco.loc[turbine_sites_soco, "Annual Private Cost"].sum()
-cost_comparison.loc["Social Cost", "Local Social Cost"] = opt_cost_soco.loc[turbine_sites_soco, "Annual Local Social Cost"].sum()
-cost_comparison.loc["Social Cost", "Total Local Social Cost"] = opt_cost_soco.loc[turbine_sites_soco, "Annual Social Cost"].sum()
+cost_comparison = build_cost_comparison(opt_cost_lcoe, opt_cost_soco, GENERATION_TARGET)
 
 latex_coco = cost_comparison.to_latex(float_format="%.1f")
 coco_lines = latex_coco.split('\n')[4:-3]

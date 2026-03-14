@@ -1,15 +1,19 @@
 # %% imports
+import json
 import logging
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import xarray as xr
-from scow.optimization import solve_objective_chunked
-from scow.paths import opt_cost_path, opt_locations_path, soco_path
+from scow.optimization import final_output_metadata, solve_objective_chunked
+from scow.paths import opt_cost_path, opt_locations_path, opt_metadata_path, soco_path
 from scow.stages import load_atlas_for_analysis
 from scow.utils import locations_to_gdf
 from config import atlas_path, data_ver, spacing, nturbines
 
 slice_count = 6
+MIN_TURBINES = 1200
+MAX_TURBINES = 6000
 # Retain the current stage-4 screening thresholds in EUR/MWh, but name them
 # explicitly so the objective-specific assumptions are visible in one place.
 OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH = {
@@ -74,6 +78,7 @@ for objective, cost_threshold in OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH.items():
     cost_array = objective_cost_array(social_cost, objective)
     locations_path = opt_locations_path(data_ver, objective)
     cost_path = opt_cost_path(data_ver, objective)
+    metadata_path = opt_metadata_path(data_ver, objective)
 
     locations = solve_objective_chunked(
         cost_array,
@@ -83,8 +88,8 @@ for objective, cost_threshold in OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH.items():
         num_turbines=nturbines,
         space_px=spacing,
         lcoe_thresh=cost_threshold,
-        min_turbines=1200,
-        max_turbines=6000,
+        min_turbines=MIN_TURBINES,
+        max_turbines=MAX_TURBINES,
         axis=0,
     )
 
@@ -103,5 +108,21 @@ for objective, cost_threshold in OBJECTIVE_COST_THRESHOLDS_EUR_PER_MWH.items():
 
     cost_at_best_locations["CumSumEnergy"] = cost_at_best_locations["Energy"].cumsum() / 1000
     cost_at_best_locations.to_csv(cost_path)
+    metadata = final_output_metadata(
+        cost_array,
+        scenario=data_ver,
+        objective=objective,
+        num_slices=slice_count,
+        num_turbines=nturbines,
+        space_px=spacing,
+        lcoe_thresh=cost_threshold,
+        min_turbines=MIN_TURBINES,
+        max_turbines=MAX_TURBINES,
+        axis=0,
+    )
+    metadata["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+    metadata["locations_file"] = locations_path.name
+    metadata["cost_file"] = cost_path.name
+    metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
     logging.info(f"Optimal cost for {objective} written to: "
                  f"{str(cost_path)}")

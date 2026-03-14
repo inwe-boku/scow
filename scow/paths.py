@@ -81,6 +81,10 @@ def opt_cost_path(scenario: str, objective: str) -> Path:
     return results_dir() / f"opt_cost_{scenario}_{objective}.csv"
 
 
+def opt_metadata_path(scenario: str, objective: str) -> Path:
+    return results_dir() / f"opt_meta_{scenario}_{objective}.json"
+
+
 def chunk_locations_cache_path(scenario: str, objective: str, chunk: int) -> Path:
     return opt_dir() / f"chunk_locations_{scenario}_{objective}_{chunk}.parquet"
 

@@ -15,18 +15,34 @@ from scow.site_data import generate_data_dict
 For the World Database on Protected Areas (WDPA), if the provided link is broken, find the latest link at [Protected Planet](https://www.protectedplanet.net/country/AUT).
 
 ## Installation
-The code is developed using `python 3.9` and relies heavily on the `cleo` package. Other dependencies are listed in `environment.yml`. To create a Python environment named `myenv` with these dependencies:
+The code is developed in a Python 3.12 environment and relies heavily on the local `cleo` package, which currently requires Python 3.11 or newer. Other Python dependencies are listed in `environment.yml`. To create the canonical Python environment:
 ```bash
-conda env create -n myenv -f environment.yml
+conda env create -n scow -f environment.yml
 ```
 For `cleo` installation and usage, refer to the [cleo GitHub page](https://github.com/sebwehrle/cleo).
 
 Apart from python, installations of GDAL, [R](https://www.r-project.org/) and a working [Gurobi](https://www.gurobi.com/) setup for the Python environment are also required.
 
-Required non-base R packages for stage 2:
+Stage 2 now expects its R package set to be restored ahead of execution. The tracked lockfile is `renv.lock`. The canonical bootstrap path is:
+
+```bash
+Rscript --vanilla -e 'install.packages("renv", repos="https://cloud.r-project.org"); renv::restore(lockfile="renv.lock")'
+```
+
+`discrete_choice.R` now bootstraps the project library from that lockfile at runtime, so later stage-2 runs and the focused stage-2 test use the tracked package set rather than whatever happens to be installed globally.
+
+The current locked stage-2 package surface includes at least:
 - `logitr`
 - `tidyverse`
 - `broom`
+
+To run the focused validation suite from the Python environment:
+
+```bash
+pytest
+```
+
+The suite includes guarded checks for the stage-2 R runtime and the optional Gurobi solver path. Those checks will skip rather than fail when the corresponding runtime is not provisioned locally.
 
 ## Execution
 ### Configuration
@@ -70,6 +86,14 @@ Execute the scripts sequentially:
 4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, reusing validated chunk caches under `opt/` when possible and writing final results to `opt_locations_{data_ver}_{objective}.csv` and `opt_cost_{data_ver}_{objective}.csv` in `data/results`.
 
 5. **05_postprocess_sites.py**: Processes optimal wind turbine sites, computes local and total social costs, and plots maps of optimal locations and the social cost curve.
+
+### Validation
+The repository now includes a small focused validation suite covering:
+
+- stage-2 reproducibility
+- stage-4 chunk candidate/conflict semantics
+- stage-5 generation-target accounting
+- on-demand output-path creation
 
 ### Logging
 The canonical numbered pipeline scripts do not configure a centralized file logger by default; progress and warnings are emitted to standard output and error.

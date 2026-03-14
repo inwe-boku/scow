@@ -4,7 +4,7 @@ channels:
   - conda
   - conda-forge
 dependencies:
-  - python==3.9
+  - python==3.12
   - scipy
   - numpy
   - pandas
@@ -21,3 +21,4 @@ dependencies:
   - pip
   - fiona
   - matplotlib
+  - pytest

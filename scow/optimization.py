@@ -172,6 +172,11 @@ def _chunk_cost_fingerprint(chunk_map) -> str:
     return hashlib.sha256(chunk_values.tobytes()).hexdigest()
 
 
+def _hash_chunk_metadata_list(metadata_list) -> str:
+    payload = json.dumps(metadata_list, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def _chunk_cache_metadata(
     *,
     scenario: str,
@@ -227,6 +232,64 @@ def _load_cached_chunk(cache_path: Path, meta_path: Path, expected_metadata):
 def _write_chunk_cache(cache_path: Path, meta_path: Path, locations, metadata):
     locations[["l", "b"]].astype(int).to_parquet(cache_path, index=False)
     meta_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
+
+
+def final_output_metadata(
+    cost_array,
+    *,
+    scenario: str,
+    objective: str,
+    num_slices: int,
+    num_turbines,
+    space_px: int,
+    lcoe_thresh: float,
+    min_turbines: int,
+    max_turbines: int,
+    axis: int = 0,
+    mip_gap: float = 0.01,
+    time_limit_s: int | None = None,
+):
+    """Build final stage-4 output metadata from the current chunk-cache contract."""
+    chunk_metadata = []
+    for chunk_index in range(num_slices):
+        chunk_info = reconstruct_chunk(
+            cost_array,
+            chunk_index=chunk_index,
+            num_slices=num_slices,
+            num_turbines=num_turbines,
+            space_px=space_px,
+            lcoe_thresh=lcoe_thresh,
+            min_turbines=min_turbines,
+            max_turbines=max_turbines,
+            axis=axis,
+        )
+        chunk_metadata.append(
+            _chunk_cache_metadata(
+                scenario=scenario,
+                objective=objective,
+                chunk_index=chunk_index,
+                chunk_info=chunk_info,
+                space_px=space_px,
+                num_slices=num_slices,
+                num_turbines=num_turbines,
+                lcoe_thresh=lcoe_thresh,
+                mip_gap=mip_gap,
+                time_limit_s=time_limit_s,
+            )
+        )
+
+    return {
+        "scenario": scenario,
+        "objective": objective,
+        "spacing": int(space_px),
+        "num_slices": int(num_slices),
+        "num_turbines_mode": str(num_turbines),
+        "min_turbines": int(min_turbines),
+        "max_turbines": int(max_turbines),
+        "cost_threshold_eur_per_mwh": float(lcoe_thresh),
+        "axis": int(axis),
+        "final_fingerprint": _hash_chunk_metadata_list(chunk_metadata),
+    }
 
 
 def solve_objective_chunked(

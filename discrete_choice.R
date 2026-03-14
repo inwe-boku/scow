@@ -1,3 +1,25 @@
+bootstrap_stage2_project_library <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) == 0) {
+    return(invisible(NULL))
+  }
+
+  script_dir <- dirname(normalizePath(sub("^--file=", "", file_arg[[1]])))
+  lockfile <- file.path(script_dir, "renv.lock")
+  if (!file.exists(lockfile)) {
+    return(invisible(NULL))
+  }
+
+  if (!requireNamespace("renv", quietly = TRUE)) {
+    stop("renv is required to load the tracked stage-2 package lockfile")
+  }
+
+  renv::load(project = script_dir, quiet = TRUE)
+}
+
+bootstrap_stage2_project_library()
+
 library(logitr)
 library(tidyverse)
 library(broom)
