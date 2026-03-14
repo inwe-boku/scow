@@ -5,11 +5,11 @@ from pathlib import Path
 
 
 @dataclass(frozen=True)
-class SocialCostArtifacts:
+class SocialCostAtlas:
     """Path-based handle for the current social-cost artifact seam."""
 
     scenario: str
     netcdf_path: Path
 
 
-SocialCostAtlas = SocialCostArtifacts
+SocialCostArtifacts = SocialCostAtlas

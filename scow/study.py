@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from social_cost_inference.optimization import OptimizationRequest
+from social_cost_inference.reporting import ReportingRequest
 from social_cost_inference.studies import SpatialDecisionStudy
 
 AREA_NAME = "Niederösterreich"
@@ -138,4 +140,27 @@ class ScowStudy(SpatialDecisionStudy):
             protected_variables=BASELINE_PROTECTED_VARIABLES,
             restricted_data_variables=BASELINE_RESTRICTED_DATA_VARIABLES,
             tag=None,
+        )
+
+    def optimization_request(self, objective: str) -> OptimizationRequest:
+        """Return the current stage-4 request for one named objective."""
+
+        return OptimizationRequest(
+            scenario=self.scenario,
+            objective=objective,
+            spacing=self.spacing,
+            num_turbines=self.num_turbines,
+            slice_count=self.slice_count,
+            min_turbines=self.min_turbines,
+            max_turbines=self.max_turbines,
+            cost_threshold=self.objective_threshold(objective),
+        )
+
+    def reporting_request(self) -> ReportingRequest:
+        """Return the current stage-5 reporting request for this study."""
+
+        return ReportingRequest(
+            scenario=self.scenario,
+            area_name=self.area_name,
+            generation_target=self.generation_target,
         )
