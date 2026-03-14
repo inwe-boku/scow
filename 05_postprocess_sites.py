@@ -2,22 +2,39 @@
 import matplotlib.pyplot as plt
 import geopandas as gpd
 import contextily as cx
+import seaborn as sns
 import xarray as xr
 from config import repo, data_ver
 from scow.artifact_validators import validate_soco_dataset, validate_stage4_costs
 from scow.logging_utils import configure_script_logging
 from scow.paths import (
     cost_curve_figure_path,
+    dist_soco_figure_path,
     latex_cost_comparison_path,
+    map_lcoe_figure_path,
+    map_soco_figure_path,
     map_turbines_figure_path,
     soco_path,
+    soco_facet_figure_path,
 )
 from scow.postprocess_sites_helpers import annual_cost, build_cost_comparison, sites_to_target
+from scow.postprocess_wtp_helpers import cost_distribution_frame
 from scow.stage4_outputs import load_stage4_costs
 
 # %% Settings
 BL = 'Niederösterreich'
 GENERATION_TARGET = 8.00
+
+
+def latex_cost_comparison_fragment(df):
+    """Render the current LaTeX body-row fragment without relying on pandas line offsets."""
+    lines = []
+    for label, row in df.iterrows():
+        cells = [str(int(row["Wind Turbines"]))]
+        cells.extend(f"{float(row[col]):.1f}" for col in df.columns if col != "Wind Turbines")
+        lines.append(f"{label} & " + " & ".join(cells) + r" \\")
+    return "\n".join(lines)
+
 
 # %% Read optimization results and maps
 logger = configure_script_logging("stage5")
@@ -31,7 +48,56 @@ opt_cost_soco = validate_stage4_costs(load_stage4_costs(data_ver, "soco"), "soco
 opt_cost_loco = validate_stage4_costs(load_stage4_costs(data_ver, "loco"), "loco")
 opt_cost_lcoe = validate_stage4_costs(load_stage4_costs(data_ver, "lcoe"), "lcoe")
 
+# %% Report social-cost maps and distributions
+lcoe = social_cost["min_lcoe"].copy()
+lcoe.name = "Quasi-LCOE"
+lcoe.attrs["unit"] = "€/MWh"
 
+fig, ax = plt.subplots(figsize=(7, 5))
+social_cost["Local Social Cost"].plot(ax=ax, robust=True)
+ax.set_title("")
+ax.axis("off")
+plt.tight_layout()
+plt.savefig(map_soco_figure_path(data_ver), dpi=300)
+plt.close()
+
+fig, ax = plt.subplots(figsize=(7, 5))
+lcoe.plot(ax=ax, robust=True)
+ax.set_title("")
+ax.axis("off")
+plt.tight_layout()
+plt.savefig(map_lcoe_figure_path(data_ver), dpi=300)
+plt.close()
+logger.info("Maps of Local Social Cost and LCOE plotted")
+
+cost_by_turbine = cost_distribution_frame(social_cost, 0.999)
+
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.kdeplot(data=cost_by_turbine, x="Cost [€/MWh]", hue="Cost Component", fill=True)
+plt.grid(alpha=0.4)
+ax.set_axisbelow(True)
+plt.tight_layout()
+plt.savefig(dist_soco_figure_path(data_ver), dpi=300)
+plt.close()
+logger.info("Cost distributions plotted")
+
+num_vars = len(social_cost.data_vars)
+num_cols = 4
+num_rows = (num_vars + num_cols - 1) // num_cols
+fig, axes = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(26, num_rows * 5))
+axes = axes.flatten()
+for i, var in enumerate(social_cost.data_vars):
+    social_cost[var].plot(ax=axes[i])
+    axes[i].set_title(var)
+    axes[i].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+for j in range(i + 1, num_rows * num_cols):
+    fig.delaxes(axes[j])
+plt.tight_layout()
+plt.savefig(soco_facet_figure_path(data_ver), dpi=300)
+plt.close()
+logger.info("Facet of social cost variables plotted")
+
+# %% Prepare site-cost comparisons
 opt_cost_soco['lcoe'] = social_cost['min_lcoe'].sel(x=opt_cost_soco.geometry.x.to_xarray(),
                                                     y=opt_cost_soco.geometry.y.to_xarray(),
                                                     method="nearest").to_pandas()
@@ -58,14 +124,10 @@ opt_cost_loco = annual_cost(opt_cost_loco)
 # %% Compute total social cost
 cost_comparison = build_cost_comparison(opt_cost_lcoe, opt_cost_soco, GENERATION_TARGET)
 
-latex_coco = cost_comparison.to_latex(float_format="%.1f")
-coco_lines = latex_coco.split('\n')[4:-3]
-latex_coco_without_header_footer = '\n'.join(coco_lines)
+latex_cost_comparison_path().write_text(latex_cost_comparison_fragment(cost_comparison))
+logger.info("Wrote cost comparison table to %s", latex_cost_comparison_path())
 
-latex_cost_comparison_path().write_text(latex_coco_without_header_footer)
-
-
-# %% Plot maps of spatial wind turbine allocations
+# %% Report site maps and cost curve
 for objective, df in zip(["lcoe", "loco", "soco"], [opt_cost_lcoe, opt_cost_loco, opt_cost_soco]):
     fig, ax = plt.subplots(figsize=(8, 5))
     state.plot(ax=ax, alpha=0.3, edgecolor='k')

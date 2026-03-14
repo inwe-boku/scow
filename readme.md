@@ -88,13 +88,13 @@ Execute the scripts sequentially:
 
    For noncanonical experimental runs from Python, use an explicit `output_label` so experimental artifacts do not overwrite the canonical baseline namespace.
 
-3. **03_postprocess_wtp.py**: Computes social costs, plots maps of private and social costs, and the distribution of various costs.
+3. **03_postprocess_wtp.py**: Computes the local social-cost artifact and writes `soco.nc` in `data/results`.
 
 4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, reusing validated chunk caches under `opt/` when possible and writing final results to `opt_locations_{data_ver}_{objective}.csv` and `opt_cost_{data_ver}_{objective}.csv` in `data/results`.
 
    Stage 4 now also writes `opt_meta_{data_ver}_{objective}.json` sidecars and uses shared validators for the final `opt_locations_*` / `opt_cost_*` / `opt_meta_*` bundle contract.
 
-5. **05_postprocess_sites.py**: Processes optimal wind turbine sites, computes local and total social costs, and plots maps of optimal locations and the social cost curve. Stage 5 now loads stage-4 cost outputs through shared helpers instead of reading raw CSVs ad hoc.
+5. **05_postprocess_sites.py**: Unified reporting stage for both WTP/social-cost outputs and site-allocation outputs. It reads `soco.nc` and stage-4 cost outputs, then writes the WTP maps/distributions, turbine-allocation maps, social-cost curve, and LaTeX cost comparison table.
 
 ### Validation
 The repository now includes a small focused validation suite covering:
