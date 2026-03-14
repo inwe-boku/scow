@@ -13,9 +13,15 @@ from scow.postprocess_wtp_helpers import (
 )
 from scow.stages import load_atlas_for_analysis
 from scow.utils import postprocess_spatialdc
+from social_cost_inference.atlas import SocialCostAtlas
 
 
-def build_social_cost_atlas(*, repo_root: Path, atlas_file: Path, scenario: str) -> Path:
+def build_social_cost_atlas(
+    *,
+    repo_root: Path,
+    atlas_file: Path,
+    scenario: str,
+) -> SocialCostAtlas:
     """Build the current stage-3 social-cost artifact for one scenario.
 
     Parameters
@@ -29,8 +35,8 @@ def build_social_cost_atlas(*, repo_root: Path, atlas_file: Path, scenario: str)
 
     Returns
     -------
-    Path
-        Path to the written `soco.nc` artifact.
+    SocialCostAtlas
+        Path-based handle to the written `soco.nc` artifact.
     """
 
     logger = configure_script_logging("stage3")
@@ -55,11 +61,26 @@ def build_social_cost_atlas(*, repo_root: Path, atlas_file: Path, scenario: str)
     output_path = soco_path(scenario)
     social_cost.to_netcdf(output_path)
     logger.info("Wrote social-cost dataset to %s", output_path)
-    return output_path
+    return SocialCostAtlas(scenario=scenario, netcdf_path=output_path)
 
 
-def load_social_cost_atlas(scenario: str, *, engine: str | None = None) -> xr.Dataset:
-    """Load and validate the current `soco.nc` artifact for one scenario."""
+def get_social_cost_atlas(scenario: str) -> SocialCostAtlas:
+    """Return the current path-based social-cost artifact handle for one scenario."""
 
+    return SocialCostAtlas(scenario=scenario, netcdf_path=soco_path(scenario))
+
+
+def open_social_cost_atlas(
+    social_cost_atlas: SocialCostAtlas | Path,
+    *,
+    engine: str | None = None,
+) -> xr.Dataset:
+    """Open and validate the current `soco.nc` artifact from an explicit atlas handle."""
+
+    netcdf_path = (
+        social_cost_atlas.netcdf_path
+        if isinstance(social_cost_atlas, SocialCostAtlas)
+        else Path(social_cost_atlas)
+    )
     open_kwargs = {} if engine is None else {"engine": engine}
-    return validate_soco_dataset(xr.open_dataset(soco_path(scenario), **open_kwargs))
+    return validate_soco_dataset(xr.open_dataset(netcdf_path, **open_kwargs))

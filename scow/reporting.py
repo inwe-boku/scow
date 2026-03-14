@@ -21,7 +21,7 @@ from scow.paths import (
 )
 from scow.postprocess_sites_helpers import annual_cost, build_cost_comparison, sites_to_target
 from scow.postprocess_wtp_helpers import cost_distribution_frame
-from scow.social_cost import load_social_cost_atlas
+from scow.social_cost import get_social_cost_atlas, open_social_cost_atlas
 from scow.stage4_outputs import load_stage4_costs
 
 
@@ -54,7 +54,8 @@ def generate_reports(
     state = state[["BL", "geometry"]].dissolve(by="BL").reset_index()
     state = state[state.BL == area_name]
 
-    social_cost = load_social_cost_atlas(scenario, engine="netcdf4")
+    social_cost_atlas = get_social_cost_atlas(scenario)
+    social_cost = open_social_cost_atlas(social_cost_atlas, engine="netcdf4")
     opt_cost_soco = validate_stage4_costs(load_stage4_costs(scenario, "soco"), "soco")
     opt_cost_loco = validate_stage4_costs(load_stage4_costs(scenario, "loco"), "loco")
     opt_cost_lcoe = validate_stage4_costs(load_stage4_costs(scenario, "lcoe"), "lcoe")

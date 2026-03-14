@@ -11,9 +11,10 @@ import xarray as xr
 from scow.logging_utils import configure_script_logging
 from scow.optimization import final_output_metadata, solve_objective_chunked
 from scow.paths import opt_cost_path, opt_locations_path, opt_metadata_path
-from scow.social_cost import load_social_cost_atlas
+from scow.social_cost import get_social_cost_atlas
 from scow.stages import load_atlas_for_analysis
 from scow.utils import locations_to_gdf
+from social_cost_inference.atlas import SocialCostAtlas
 
 
 def load_energy_for_stage4(atlas, power):
@@ -67,8 +68,8 @@ def load_allocation_inputs(*, atlas_file: Path, scenario: str):
     )
     power = atlas.wind.data.optimal_power.compute()
     energy = load_energy_for_stage4(atlas, power)
-    social_cost = load_social_cost_atlas(scenario)
-    return power, energy, social_cost
+    social_cost_atlas = get_social_cost_atlas(scenario)
+    return power, energy, social_cost_atlas
 
 
 def optimize_allocation(
@@ -79,7 +80,7 @@ def optimize_allocation(
     num_turbines,
     power,
     energy,
-    social_cost,
+    social_cost: xr.Dataset,
     cost_threshold: float,
     slice_count: int,
     min_turbines: int,
