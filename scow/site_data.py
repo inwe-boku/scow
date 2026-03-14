@@ -16,7 +16,7 @@ from datetime import datetime
 # sudo apt install gdal-bin
 
 
-def process_gip(gip_path):
+def process_gip(gip_path, dissolve=True):
     # documented in https://www.gip.gv.at/assets/downloads/GIP_Standardbeschreibung_2.3.2_FINAL.pdf
     # street categories are explained in 2.3.2.6 Abschnittskategorie (GIP.EDGE.EDGECATEGORY)
     # convert to shapefiles
@@ -42,7 +42,8 @@ def process_gip(gip_path):
         gip = gip.loc[gip['EDGECAT'].isin(hochrangig)]
         hrng = pd.concat([hrng, gip])
 
-    hrng = hrng.dissolve()
+    if dissolve:
+        hrng = hrng.dissolve()
     # hrng.to_file(ROOTDIR / 'data/gip/hrng_streets.shp')
     logging.info('High-level road grid preprocessed')
     return hrng
@@ -207,7 +208,7 @@ def process_windturbines():
     print('Turbine locations preprocessed')
 """
 
-def process_protected_areas(path):
+def process_protected_areas(path, dissolve=True):
     protected_areas = gpd.GeoDataFrame()
     directory = path / "data" / "site" / "schutzgebiete"
     recent_files = {1: None, 2: None, 3: None}
@@ -226,13 +227,26 @@ def process_protected_areas(path):
         shp = gpd.read_file(datepath[1])
         protected_areas = pd.concat([protected_areas, shp], axis=0, join='outer')
 
-    protected_areas = protected_areas.dissolve()
+    if dissolve:
+        protected_areas = protected_areas.dissolve()
     return protected_areas
 
 """
 def process_wind_turbine_locations(self):
     igw_url = 'https://www.igwindkraft.at/src_project/external/maps/generated/gmaps_daten.js'
-    turbines_dir = self.parent.path / "data" / "site" / f"{self.parent.country}_turbines"
+    atlas_path = Path(self.parent.path)
+    site_root_candidates = [
+        atlas_path / "data" / "site",
+        atlas_path.parent / "site",
+    ]
+    site_root = next((candidate for candidate in site_root_candidates if candidate.exists()), None)
+    if site_root is None:
+        raise FileNotFoundError(
+            f"Could not resolve site data root from atlas path {atlas_path}. "
+            "Expected either '<atlas>/data/site' or '<atlas>/../site'."
+        )
+
+    turbines_dir = site_root / f"{self.parent.country}_turbines"
     turbines_dir.mkdir(parents=True, exist_ok=True)
 
     download_file(igw_url, turbines_dir / 'ig_wind.js')
@@ -313,7 +327,23 @@ def process_wind_turbine_locations(self):
     import geopandas as gpd
     from bs4 import BeautifulSoup
 
-    turbines_dir = self.parent.path / "data" / "site" / f"{self.parent.country}_turbines"
+    atlas = getattr(self, "_atlas", None)
+    if atlas is None:
+        atlas = self.parent
+
+    atlas_path = Path(atlas.path)
+    site_root_candidates = [
+        atlas_path / "data" / "site",
+        atlas_path.parent / "site",
+    ]
+    site_root = next((candidate for candidate in site_root_candidates if candidate.exists()), None)
+    if site_root is None:
+        raise FileNotFoundError(
+            f"Could not resolve site data root from atlas path {atlas_path}. "
+            "Expected either '<atlas>/data/site' or '<atlas>/../site'."
+        )
+
+    turbines_dir = site_root / f"{atlas.country}_turbines"
     turbines_dir.mkdir(parents=True, exist_ok=True)
 
     igw_page_url = "https://www.igwindkraft.at/aktuelles/windrad-karte"
@@ -414,69 +444,101 @@ def process_wind_turbine_locations(self):
 
         return n_anlagen, mw_each, built_year
 
+    def _normalize_cached_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+        numeric_cols = [
+            "n_Anlagen",
+            "kW",
+            "Jahr",
+            "x",
+            "lat",
+            "lon",
+            "Nabenhöhe",
+            "Rotordurchmesser",
+        ]
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", ".", regex=False), errors="coerce")
+        return df
+
     # --- scrape current IGW data (windrad-karte) and emit the legacy CSV schema ---
 
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
-        ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "de-AT,de;q=0.9,en;q=0.8",
-    }
-    r = requests.get(igw_page_url, headers=headers, timeout=60)
-    r.raise_for_status()
-    wheels = _extract_wheels_json(r.text)
+    cache_path = turbines_dir / "igwturbines.csv"
+    if cache_path.exists():
+        igw = pd.read_csv(cache_path, sep=";", decimal=",")
+        igw = _normalize_cached_numeric_columns(igw)
+    else:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "de-AT,de;q=0.9,en;q=0.8",
+        }
+        r = requests.get(igw_page_url, headers=headers, timeout=60)
+        r.raise_for_status()
+        wheels = _extract_wheels_json(r.text)
 
-    rows = []
-    for group_id, items in wheels.items():
-        for idx, item in enumerate(items):
-            # Only keep meaningful keys (drop numeric-string nulls "1".."28")
-            d = {k: v for k, v in dict(item).items() if not str(k).isdigit()}
+        rows = []
+        for group_id, items in wheels.items():
+            for idx, item in enumerate(items):
+                # Only keep meaningful keys (drop numeric-string nulls "1".."28")
+                d = {k: v for k, v in dict(item).items() if not str(k).isdigit()}
 
-            project = d.get("project", "")
-            lon = d.get("x", np.nan)
-            lat = d.get("y", np.nan)
+                project = d.get("project", "")
+                lon = d.get("x", np.nan)
+                lat = d.get("y", np.nan)
 
-            facilityInfo = d.get("facilityInfo", "")
-            typeInfo = d.get("typeInfo", "")
+                facilityInfo = d.get("facilityInfo", "")
+                typeInfo = d.get("typeInfo", "")
 
-            n_anlagen, mw_each, built_year = _parse_facilityinfo(facilityInfo)
-            manufacturer, model, hub_h, rotor_d = _parse_typeinfo(typeInfo)
+                n_anlagen, mw_each, built_year = _parse_facilityinfo(facilityInfo)
+                manufacturer, model, hub_h, rotor_d = _parse_typeinfo(typeInfo)
 
-            # mweinzeln is already MW per unit (matches facilityInfo "je ... MW")
-            mw_each2 = d.get("mweinzeln", mw_each)
-            mw_each2 = _to_float_de(mw_each2)
+                # mweinzeln is already MW per unit (matches facilityInfo "je ... MW")
+                mw_each2 = d.get("mweinzeln", mw_each)
+                mw_each2 = _to_float_de(mw_each2)
 
-            kW_each = np.nan
-            if np.isfinite(mw_each2):
-                kW_each = int(round(mw_each2 * 1000.0))
+                kW_each = np.nan
+                if np.isfinite(mw_each2):
+                    kW_each = int(round(mw_each2 * 1000.0))
 
-            # Legacy output schema (same columns as your old code)
-            rows.append({
-                "Name": project,
-                "Betreiber1": "",          # not provided by current dataset
-                "Betreiber2": "",          # not provided by current dataset
-                "n_Anlagen": n_anlagen,
-                "kW": kW_each,
-                "Type": model,
-                "Jahr": built_year,
-                "x": lon,                  # legacy column existed; keep lon here
-                "lat": lat,
-                "lon": lon,
-                "url": "",                 # not provided by current dataset
-                "Hersteller": manufacturer,
-                "Nabenhöhe": hub_h,
-                "Rotordurchmesser": rotor_d,
-            })
+                rows.append({
+                    "Name": project,
+                    "Betreiber1": "",
+                    "Betreiber2": "",
+                    "n_Anlagen": n_anlagen,
+                    "kW": kW_each,
+                    "Type": model,
+                    "Jahr": built_year,
+                    "x": lon,
+                    "lat": lat,
+                    "lon": lon,
+                    "url": "",
+                    "Hersteller": manufacturer,
+                    "Nabenhöhe": hub_h,
+                    "Rotordurchmesser": rotor_d,
+                })
 
-    igw = pd.DataFrame(
-        rows,
-        columns=[
-            "Name", "Betreiber1", "Betreiber2", "n_Anlagen", "kW", "Type", "Jahr", "x", "lat",
-            "lon", "url", "Hersteller", "Nabenhöhe", "Rotordurchmesser",
-        ],
-    )
+        igw = pd.DataFrame(
+            rows,
+            columns=[
+                "Name",
+                "Betreiber1",
+                "Betreiber2",
+                "n_Anlagen",
+                "kW",
+                "Type",
+                "Jahr",
+                "x",
+                "lat",
+                "lon",
+                "url",
+                "Hersteller",
+                "Nabenhöhe",
+                "Rotordurchmesser",
+            ],
+        )
 
     # --- your legacy normalization/cleaning (unchanged) ---
 
@@ -511,26 +573,27 @@ def process_wind_turbine_locations(self):
         igw[["Nabenhöhe", "Rotordurchmesser"]].replace("", np.nan).astype(float)
     )
 
-    igw.to_csv(turbines_dir / "igwturbines.csv", sep=";", decimal=",", encoding="utf8", index=False)
-    logging.info("Download of wind turbine data complete")
+    if not cache_path.exists():
+        igw.to_csv(cache_path, sep=";", decimal=",", encoding="utf8", index=False)
+        logging.info("Download of wind turbine data complete")
 
     # --- merge wind turbine location data from IGW and BEV (unchanged except one bugfix) ---
 
     bev = (
-        gpd.read_file(self.parent.path / "data" / "site" / "buildings" / "BAU_2200_BETRIEB_P_0.shp")
+        gpd.read_file(site_root / "buildings" / "BAU_2200_BETRIEB_P_0.shp")
         .loc[lambda df: df.F_CODE == 2202]
-        .to_crs(self.parent.crs)
+        .to_crs(atlas.crs)
     )
     bev["points"] = bev["geometry"]
     bev["geometry"] = bev["geometry"].buffer(20)
 
     # BUGFIX: use the dataframe we just read for points_from_xy (not a stale name)
-    igw_df = pd.read_csv(turbines_dir / "igwturbines.csv", sep=";", decimal=",")
+    igw_df = _normalize_cached_numeric_columns(pd.read_csv(cache_path, sep=";", decimal=","))
     igw = gpd.GeoDataFrame(
         igw_df,
         geometry=gpd.points_from_xy(igw_df["lon"], igw_df["lat"]),
         crs="epsg:4326",
-    ).to_crs(self.parent.crs)
+    ).to_crs(atlas.crs)
 
     turbine_locations = bev.sjoin(igw, how="left", predicate="contains").reset_index(drop=True)
     turbine_locations["ERSTELLDAT"] = turbine_locations["ERSTELLDAT"].apply(pd.to_datetime)

@@ -61,18 +61,28 @@ if (!DEBUG){
   datafile <- args[2]
   num_runs <- as.integer(args[3])
   specif <- args[4]
-  last_integer <- as.integer(args[5])
-  integer_model_vars <- c(args[6:last_integer])
-  base_mod <- c(args[6:last])
+  integer_count <- as.integer(args[5])
+  seed <- as.integer(args[6])
+  base_mod <- c(args[7:last])
+  if (is.na(integer_count) || integer_count < 0L) {
+    stop("integer_count must be a non-negative integer")
+  }
+  if (is.na(seed)) {
+    stop("seed must be a valid integer")
+  }
+  if (integer_count > length(base_mod)) {
+    stop("integer_count exceeds the number of provided model variables")
+  }
+  integer_model_vars <- if (integer_count == 0L) c() else base_mod[seq_len(integer_count)]
 }
 
 if (DEBUG){
   last <- 25
-  work_dir <- '/Users/nwesec/repos/scow'
+  work_dir <- '/Users/nwesec/code/scow'
   datafile <- '2014'
   num_runs <- 25
   specif <- 'debug'
-  last_integer <- 11
+  seed <- 42L
   integer_model_vars <- c(
     "airports_buff",
     "alps_convention",
@@ -102,6 +112,8 @@ if (DEBUG){
     "tree_cover_density:broadleaved",
     "tree_cover_density:coniferous"))
 }
+
+set.seed(seed)
 
 setwd(work_dir)
 
@@ -148,15 +160,38 @@ zone_out <- geodat_noe %>%
 # obsID ... identifies each unique choice observation
 
 # Parallel estimation
-# It is recommended to use no more than 50% of cores
-NMB_CORES = detectCores() / 2
-if (is.na(NMB_CORES)){
-    NMB_CORES <- 8
+# It is recommended to use no more than 50% of cores.
+# For baseline generation, cap the worker count at 8.
+detected_cores <- detectCores()
+if (is.na(detected_cores)) {
+  NMB_CORES <- 8L
+} else {
+  NMB_CORES <- as.integer(min(8L, max(1L, floor(detected_cores / 2))))
 }
 # configure number of logit model runs
 NMB_RUNS <- 1:num_runs
 
-cl <- parallel::makeCluster(as.integer(NMB_CORES), type = 'FORK')
+message("Cluster debug: Rscript=", Sys.which("Rscript"))
+message("Cluster debug: PATH=", Sys.getenv("PATH"))
+message(
+  "Cluster debug: env=",
+  paste(
+    names(Sys.getenv(c("R_PARALLEL_PORT", "R_PARALLEL_BACKEND", "RSHCMD"))),
+    Sys.getenv(c("R_PARALLEL_PORT", "R_PARALLEL_BACKEND", "RSHCMD")),
+    sep = "=",
+    collapse = " | "
+  )
+)
+message("Cluster debug: NMB_CORES=", NMB_CORES)
+message("Cluster debug: master=127.0.0.1 port=default setup_strategy=sequential")
+
+cl <- parallel::makePSOCKcluster(
+  NMB_CORES,
+  master = "127.0.0.1",
+  setup_strategy = "sequential",
+  outfile = "",
+  rscript = "/usr/local/bin/Rscript"
+)
 clusterExport(cl, c("geodat_noe", "zone_out", "zone_in"))
 clusterEvalQ(cl, library("logitr", quietly = T))
 clusterEvalQ(cl, library("tidyverse"))

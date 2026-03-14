@@ -1,6 +1,5 @@
 # %% Imports
 import logging
-import cleo
 import matplotlib.pyplot as plt
 import numpy as np
 import netCDF4
@@ -9,7 +8,15 @@ import geopandas as gpd
 from shapely import wkt
 import contextily as cx
 import xarray as xr
-from config import repo, data_ver
+from config import repo, atlas_path, data_ver
+from scow.paths import (
+    cost_curve_figure_path,
+    latex_cost_comparison_path,
+    map_turbines_figure_path,
+    opt_cost_path,
+    soco_path,
+)
+from scow.stages import load_atlas_for_analysis
 
 # %% Settings
 BL = 'Niederösterreich'
@@ -18,35 +25,18 @@ model_spec = 'base'  # ['parsimonious', 'base']
 scenario = 'cost'
 year = 2014  # [2014, 'modern']
 GENERATION_TARGET = 8.00
+sens_name = "" if data_ver == "2014" else f"_{data_ver}"
 
 # %% Read optimization results and maps
 state = gpd.read_file(repo / 'data' / 'site' / 'vgd' / 'vgd_oesterreich.shp')
 state = state[['BL', 'geometry']].dissolve(by='BL').reset_index()
 state = state[state.BL == BL]
 
-atlas = cleo.Atlas(repo, "AUT", "EPSG:31287")
-if atlas.region != "Niederösterreich":
-    atlas.clip_to_nuts("Niederösterreich")
-if not atlas.wind_turbines:
-    atlas.wind_turbines = [
-        "Enercon.E40.500", "Enercon.E82.3000", "Enercon.E101.3050", "Enercon.E115.3000",
-        "Vestas.V100.1800", "Vestas.V100.2000", "Vestas.V112.3075"
-    ]
-if 'capacity_factors' not in atlas.wind.data.data_vars:
-    atlas.wind.simulate_capacity_factors(bias_correction=0.71197)
-if 'lcoe' not in atlas.wind.data.data_vars:
-    atlas.wind.compute_lcoe(turbine_cost_share=0.7)
-if 'min_lcoe' not in atlas.wind.data.data_vars:
-    atlas.wind.minimum_lcoe()
-if 'optimal_power' not in atlas.wind.data.data_vars:
-    atlas.wind.compute_optimal_power_energy()
-
-energy = atlas.wind.data.optimal_energy.compute()
-power = atlas.wind.data.optimal_power.compute()
-social_cost = xr.open_dataset(repo / "data" / "results" / "soco.nc", engine="netcdf4")
-opt_cost_soco = pd.read_csv(repo / "data" / "results" / f"opt_cost_{data_ver}_soco.csv")
-opt_cost_loco = pd.read_csv(repo / "data" / "results" / f"opt_cost_{data_ver}_loco.csv")
-opt_cost_lcoe = pd.read_csv(repo / "data" / "results" / f"opt_cost_{data_ver}_lcoe.csv")
+atlas = load_atlas_for_analysis({"atlas_path": atlas_path, "scenario": data_ver})
+social_cost = xr.open_dataset(soco_path(data_ver), engine="netcdf4")
+opt_cost_soco = pd.read_csv(opt_cost_path(data_ver, "soco"))
+opt_cost_loco = pd.read_csv(opt_cost_path(data_ver, "loco"))
+opt_cost_lcoe = pd.read_csv(opt_cost_path(data_ver, "lcoe"))
 
 
 # %% Convert to GeoDataFrame
@@ -117,8 +107,7 @@ latex_coco = cost_comparison.to_latex(float_format="%.1f")
 coco_lines = latex_coco.split('\n')[4:-3]
 latex_coco_without_header_footer = '\n'.join(coco_lines)
 
-with open("cost_comparison.tex", "w") as tex_file:
-    tex_file.write(latex_coco_without_header_footer)
+latex_cost_comparison_path().write_text(latex_coco_without_header_footer)
 
 
 # %% Plot maps of spatial wind turbine allocations
@@ -127,10 +116,14 @@ for df, filename in zip([opt_cost_lcoe, opt_cost_loco, opt_cost_soco],
     fig, ax = plt.subplots(figsize=(8, 5))
     state.plot(ax=ax, alpha=0.3, edgecolor='k')
     df[df['CumSumEnergy'] <= GENERATION_TARGET].plot(ax=ax, color='red', markersize=2)
-    cx.add_basemap(ax, crs=state.crs, source=cx.providers.BasemapAT.terrain, zoom=10)
+    try:
+        cx.add_basemap(ax, crs=state.crs, source=cx.providers.BasemapAT.terrain, zoom=10)
+    except Exception as exc:
+        logging.warning("Basemap fetch failed for %s: %s", filename, exc)
     ax.set_axis_off()
     plt.tight_layout()
-    plt.savefig(repo / f'figures/{filename}', dpi=300)
+    objective = filename.removeprefix("map_turbines_").removesuffix(".png")
+    plt.savefig(map_turbines_figure_path(objective), dpi=300)
     plt.close()
 
 logging.info('Maps of optimal wind turbine sites saved')
@@ -145,7 +138,7 @@ plt.grid()
 ax.set_axisbelow(True)
 plt.legend(['Quasi-LCOE', 'Local Social Cost'], loc='upper left')
 plt.tight_layout()
-plt.savefig(repo / 'figures/cost_curve.png', dpi=300)
+plt.savefig(cost_curve_figure_path(), dpi=300)
 plt.close()
 
 logging.info('Social cost curve saved')

@@ -3,22 +3,14 @@ from pathlib import Path
 
 # %% config
 repo = Path("/Users/nwesec/code/scow")
+atlas_path = repo / "data" / "atlas"
 data_ver = "2014"  # "2014" or "modern"
 
-num_runs = "2500"
+num_runs = "500"
 selection_criterion = "BIC"
+replication_seed = 42
 
-spacing = 3
+spacing = 3  # retained default discrete spacing rule for the accepted Python-native stage-4 path
 nturbines = "auto"
 
 rdir = Path("/usr/local/bin/Rscript")
-gamsdir = Path("/Library/Frameworks/GAMS.framework/Versions/46/Resources/gams")
-
-gams_conf = {
-    'gams_model': repo / "opt" / "location_selection.gms",
-    'gdx_input': repo / "opt" / "input_data.gdx",
-    'gdx_output': repo / "opt",
-    'gams_exe': gamsdir.parent
-}
-
-

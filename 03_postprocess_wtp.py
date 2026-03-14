@@ -4,15 +4,23 @@ import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
 import seaborn as sns
-import cleo
 
+from scow.paths import (
+    dist_soco_figure_path,
+    map_lcoe_figure_path,
+    map_soco_figure_path,
+    parsimonious_name_path,
+    soco_facet_figure_path,
+    soco_path,
+)
+from scow.stages import load_atlas_for_analysis
 from scow.utils import postprocess_spatialdc
-from config import repo, data_ver
+from config import repo, atlas_path, data_ver
 
 # %% settings
 sens_name = "" if data_ver == "2014" else "_modern"
 
-with open(f"parsimonious_name{sens_name}.txt", "r") as f:
+with open(parsimonious_name_path(data_ver), "r") as f:
     parsimonious_name = f.read()
 
 # %% load estimated model
@@ -20,28 +28,18 @@ parsimonious_coeffs, parsimonious_stats = postprocess_spatialdc(repo, data_ver, 
 parsimonious_coeffs["valuation"] = parsimonious_coeffs["estimate"] / parsimonious_coeffs.loc["min_lcoe", "estimate"]
 
 # %% load site data
-atlas = cleo.Atlas(repo, "AUT",  crs="epsg:31287").load(region='Niederösterreich', scenario='2014', timestamp='20241210T140021')
-
-if not atlas.wind_turbines:
-    atlas.wind_turbines = [
-        "Enercon.E40.500", "Enercon.E82.3000", "Enercon.E101.3050", "Enercon.E115.3000",
-        "Vestas.V100.1800", "Vestas.V100.2000", "Vestas.V112.3075"]
-
-if 'lcoe' not in atlas.wind.data.data_vars:
-    atlas.wind.compute_lcoe(turbine_cost_share=0.7)
-if 'min_lcoe' not in atlas.wind.data.data_vars:
-    atlas.wind.minimum_lcoe()
-if 'min_lcoe' not in atlas.landscape.data.data_vars:
-    atlas.landscape.add(atlas.wind.data.min_lcoe, name='min_lcoe')
+atlas = load_atlas_for_analysis({"atlas_path": atlas_path, "scenario": data_ver})
 
 # generate interaction data
+landscape_data = atlas.landscape.data
 for var in list(parsimonious_coeffs.index):
     if ":" in var:
         vars = var.split(":")
-        atlas.landscape.data[var] = atlas.landscape.data[vars[0]] * atlas.landscape.data[vars[1]]
+        landscape_data[var] = landscape_data[vars[0]] * landscape_data[vars[1]]
 
-atlas.landscape.data = atlas.landscape.data.merge(atlas.wind.data["min_lcoe"].compute())
-spatial_data = atlas.landscape.data[list(parsimonious_coeffs.index)]
+if "min_lcoe" not in landscape_data.data_vars:
+    landscape_data = landscape_data.merge(atlas.wind.data["min_lcoe"].compute())
+spatial_data = landscape_data[list(parsimonious_coeffs.index)]
 
 # %% compute social cost
 soco = xr.Dataset()
@@ -57,15 +55,12 @@ if soco["Local Social Cost"].min() < 0:
     soco["Local Social Cost"] -= soco["Local Social Cost"].min()
 
 soco["Local Social Cost"].attrs['unit'] = "€/MWh"
-soco.to_netcdf(atlas.path / 'data' / 'results' / f'soco{sens_name}.nc')
+soco.to_netcdf(soco_path(data_ver))
 
 # %% Plot map of local social cost and LCOE
 lcoe = soco['min_lcoe']
 lcoe.name = "Quasi-LCOE"
 lcoe.attrs['unit'] = '€/MWh'
-
-figures_dir = atlas.path / 'figures'
-figures_dir.mkdir(parents=True, exist_ok=True)
 
 fig, axs = plt.subplots(figsize=(7, 5))
 soco["Local Social Cost"].plot(ax=axs, robust=True)
@@ -74,7 +69,7 @@ axs.axis('off')
 axs.set_title("")
 axs.axis('off')
 plt.tight_layout()
-plt.savefig(figures_dir / f'map_soco_{data_ver}.png', dpi=300)
+plt.savefig(map_soco_figure_path(data_ver), dpi=300)
 plt.close()
 
 fig, axs = plt.subplots(figsize=(7, 5))
@@ -84,7 +79,7 @@ axs.axis('off')
 axs.set_title("")
 axs.axis('off')
 plt.tight_layout()
-plt.savefig(figures_dir / f'map_lcoe_{data_ver}.png', dpi=300)
+plt.savefig(map_lcoe_figure_path(data_ver), dpi=300)
 plt.close()
 
 logging.info('Maps of Local Social Cost and LCOE plotted')
@@ -101,15 +96,15 @@ lcoe_at_all = pd.DataFrame(data=soco[f'min_lcoe'].to_pandas().stack().reset_inde
 lcoe_at_all['target'] = 1
 lcoe_at_all['Cost Component'] = f'Quasi-LCOE'
 lcoe_at_all = lcoe_at_all.loc[lcoe_at_all['Cost [€/MWh]'] <= lcoe_at_all['Cost [€/MWh]'].quantile(cut_off), :]
-cost_distribution = pd.concat([cost_distribution, lcoe_at_all])
+cost_distribution = pd.concat([cost_distribution, lcoe_at_all], ignore_index=True)
 
 loco = soco['Local Social Cost'] + soco[f'min_lcoe']
 loco = pd.DataFrame(data=loco.to_pandas().stack().reset_index(drop=True), columns=['Cost [€/MWh]'])
 loco_at_all = loco.loc[loco['Cost [€/MWh]'] <= loco['Cost [€/MWh]'].quantile(cut_off), :]
 loco_at_all['target'] = 2
 loco_at_all['Cost Component'] = f'Total Local Social Cost'
-cost_distribution = pd.concat([cost_distribution, loco_at_all])
-cost_by_turbine = pd.concat([cost_by_turbine, cost_distribution])
+cost_distribution = pd.concat([cost_distribution, loco_at_all], ignore_index=True)
+cost_by_turbine = pd.concat([cost_by_turbine, cost_distribution], ignore_index=True)
 
 # %% compute summary stats of each distribution
 destat_qlcoe = cost_by_turbine.loc[cost_by_turbine["Cost Component"] == "Quasi-LCOE", "Cost [€/MWh]"].describe()
@@ -123,7 +118,7 @@ sns.kdeplot(data=cost_by_turbine, x='Cost [€/MWh]', hue='Cost Component', fill
 plt.grid(alpha=0.4)
 ax.set_axisbelow(True)
 plt.tight_layout()
-plt.savefig(atlas.path / f'figures/dist_soco_{data_ver}.png', dpi=300)
+plt.savefig(dist_soco_figure_path(data_ver), dpi=300)
 plt.close()
 
 logging.info('Cost distributions plotted')
@@ -157,6 +152,6 @@ for j in range(i+1, num_rows * num_cols):
     fig.delaxes(axes[j])
 # Adjust layout
 plt.tight_layout()
-plt.savefig(atlas.path / f'figures/soco_facet{sens_name}.png', dpi=300)
+plt.savefig(soco_facet_figure_path(data_ver), dpi=300)
 plt.close()
 logging.info("Facet of social cost variables plotted")

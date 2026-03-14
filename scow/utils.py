@@ -1,17 +1,79 @@
 # %% imports
 import logging
-import os
 import subprocess
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import gams.transfer as gt
-from pathlib import Path
 from scipy.stats import t
-from config import rdir, gamsdir
+from config import rdir, replication_seed
+from scow.paths import coefs_path, loglik_path
 
 
-def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, variables):
+def _raise_if_nan(frame, columns, run_name, artifact_name):
+    nan_mask = frame[columns].isna()
+    if not nan_mask.any().any():
+        return
+
+    failing_rows = frame.loc[nan_mask.any(axis=1), :]
+    preview = failing_rows.head(5).to_dict(orient="records")
+    raise ValueError(
+        f"NaN detected in {artifact_name} for run {run_name}. "
+        f"Affected columns: {', '.join(columns)}. "
+        f"Sample rows: {preview}"
+    )
+
+
+def _raise_if_nan_series(series, labels, run_name, artifact_name):
+    failing = [label for label in labels if pd.isna(series[label])]
+    if not failing:
+        return
+    raise ValueError(
+        f"NaN detected in {artifact_name} for run {run_name}. "
+        f"Affected fields: {', '.join(failing)}"
+    )
+
+
+def _cached_run_matches_terms(data_file, run_name, expected_terms, output_label=None):
+    coef_file = coefs_path(data_file, _artifact_run_name(run_name), output_label=output_label)
+    loglik_file = loglik_path(data_file, _artifact_run_name(run_name), output_label=output_label)
+
+    if not coef_file.exists() or not loglik_file.exists():
+        return False
+
+    ests = pd.read_csv(coef_file)
+    if {'estimate', 'std.error', 'statistic', 'p.value'} - set(ests.columns):
+        return False
+    if ests[['estimate', 'std.error', 'statistic', 'p.value']].isna().any().any():
+        return False
+
+    cached_terms = set(ests['term'].dropna().unique())
+    if cached_terms != set(expected_terms):
+        return False
+
+    loglik = pd.read_csv(loglik_file)
+    required_stats = ['logLik', 'null.logLik', 'AIC', 'BIC', 'r.squared', 'adj.r.squared', 'nobs']
+    if set(required_stats) - set(loglik.columns):
+        return False
+    if loglik[required_stats].isna().any().any():
+        return False
+
+    return True
+
+
+def _artifact_run_name(run_name):
+    return str(run_name).replace(":", "_")
+
+
+def subprocess_rscript(
+    work_dir,
+    datafile,
+    num_runs,
+    run_name,
+    last_integer,
+    variables,
+    seed=replication_seed,
+    output_label=None,
+):
     """
     Runs rscript in a subprocess
     :param work_dir:
@@ -22,6 +84,9 @@ def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, var
     :param variables:
     :return:
     """
+    artifact_run_name = _artifact_run_name(run_name)
+    temp_run_name = artifact_run_name if output_label is None else f"tmp__{output_label}__{artifact_run_name}"
+
     command = [
         str(rdir),
         "--vanilla",
@@ -29,8 +94,9 @@ def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, var
         str(work_dir),
         datafile,
         num_runs,
-        run_name,
+        temp_run_name,
         last_integer,
+        str(seed),
     ] + variables
 
     # Execute the command
@@ -56,10 +122,19 @@ def subprocess_rscript(work_dir, datafile, num_runs, run_name, last_integer, var
         # logging.info("R script finished successfully")
         print("R script finished successfully")
 
+    if output_label is not None:
+        source_coef = Path(work_dir) / "data" / "results" / f"spatialdc_coefs_{datafile}_{temp_run_name}.csv"
+        source_loglik = Path(work_dir) / "data" / "results" / f"spatialdc_loglik_{datafile}_{temp_run_name}.csv"
+        target_coef = coefs_path(datafile, artifact_run_name, output_label=output_label)
+        target_loglik = loglik_path(datafile, artifact_run_name, output_label=output_label)
+        source_coef.replace(target_coef)
+        source_loglik.replace(target_loglik)
 
 
-def postprocess_spatialdc(work_dir, datafile, run_name):
-    ests = pd.read_csv(Path(work_dir) / 'data' / 'results' / f'spatialdc_coefs_{datafile}_{run_name}.csv')
+def postprocess_spatialdc(work_dir, datafile, run_name, output_label=None):
+    artifact_run_name = _artifact_run_name(run_name)
+    ests = pd.read_csv(coefs_path(datafile, artifact_run_name, output_label=output_label))
+    _raise_if_nan(ests, ['estimate', 'std.error', 'statistic', 'p.value'], run_name, 'raw coefficient output')
     n = len(ests.groupby('mod').count())
 
     if ests['term'].str.contains('scalePar').any():
@@ -69,22 +144,35 @@ def postprocess_spatialdc(work_dir, datafile, run_name):
     coefs['std'] = ests[['term', 'estimate']].groupby(['term']).std()
     coefs['tstat'] = coefs['estimate'] / coefs['std']
     coefs['pval'] = t.sf(np.abs(coefs['tstat']), n - 1)
-    if 'min_lcoe' in coefs.columns:
+    if 'min_lcoe' in coefs.index:
         coefs['valuation'] = coefs['estimate'] / coefs.loc['min_lcoe', 'estimate']
     else:
-        coefs['valuation'] = np.nan
+        raise ValueError(f"min_lcoe coefficient missing for run {run_name}")
     coefs.loc[coefs['pval'] <= 0.01, 'significance'] = '***'
     coefs.loc[(coefs['pval'] > 0.01) & (coefs['pval'] <= 0.05), 'significance'] = '**'
     coefs.loc[(coefs['pval'] > 0.05) & (coefs['pval'] <= 0.1), 'significance'] = '*'
     coefs.loc[coefs['pval'] > 0.1, 'significance'] = ''
+    _raise_if_nan(coefs.reset_index(), ['estimate', 'std', 'tstat', 'pval', 'valuation'], run_name, 'processed coefficient summary')
 
-    loglik = pd.read_csv(Path(work_dir) / 'data' / 'results' / f'spatialdc_loglik_{datafile}_{run_name}.csv')
+    loglik = pd.read_csv(loglik_path(datafile, artifact_run_name, output_label=output_label))
+    _raise_if_nan(loglik, ['logLik', 'null.logLik', 'AIC', 'BIC', 'r.squared', 'adj.r.squared', 'nobs'], run_name, 'raw model statistics')
     loglik = loglik.mean()
+    _raise_if_nan_series(loglik, ['logLik', 'null.logLik', 'AIC', 'BIC', 'r.squared', 'adj.r.squared', 'nobs'], run_name, 'mean model statistics')
 
     return coefs, loglik
 
 
-def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_runs, compute=True):
+def leave_one_out(
+    variables,
+    integer_variables,
+    name,
+    work_dir,
+    data_file,
+    num_runs,
+    compute=True,
+    protected_variables=None,
+    output_label=None,
+):
     """
     Iteratively runs spatial discrete choice leaving one variable or interaction term out
     :param compute:
@@ -97,8 +185,11 @@ def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_r
     :return:
     """
     # generate all leave-one-out variable combinations
+    protected_variables = set() if protected_variables is None else set(protected_variables)
+
     iter_dict = {}
-    for i, var in enumerate(variables):
+    removable_variables = [var for var in variables if var not in protected_variables]
+    for i, var in enumerate(removable_variables):
         reduced_vars = [v for v in variables if v != var]
         iter_dict[i] = [var, reduced_vars]
 
@@ -109,8 +200,23 @@ def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_r
             reduced_vars = iter_dict[i][1]
             run_name = f"{name}_{var}"
             last_int = str(len([ivar for ivar in integer_variables if ivar != var]))
-            if not (Path(work_dir) / "data" / "results" / f"spatialdc_coefs_{data_file}_{run_name}.csv").exists():
-                subprocess_rscript(work_dir, data_file, num_runs, run_name, last_int, reduced_vars)
+            artifact_name = _artifact_run_name(run_name)
+            cached = _cached_run_matches_terms(
+                data_file,
+                artifact_name,
+                reduced_vars,
+                output_label=output_label,
+            )
+            if not cached:
+                subprocess_rscript(
+                    work_dir,
+                    data_file,
+                    num_runs,
+                    artifact_name,
+                    last_int,
+                    reduced_vars,
+                    output_label=output_label,
+                )
 
     # process results of runs
     run_stats = []
@@ -118,7 +224,12 @@ def leave_one_out(variables, integer_variables, name, work_dir, data_file, num_r
     for i in range(len(iter_dict)):
         var = iter_dict[i][0]
         run_name = f"{name}_{var}"
-        coeff, loglik = postprocess_spatialdc(work_dir, data_file, run_name.replace(":", "_"))
+        coeff, loglik = postprocess_spatialdc(
+            work_dir,
+            data_file,
+            _artifact_run_name(run_name),
+            output_label=output_label,
+        )
         run_stat = pd.concat([pd.Series([var]), loglik], ignore_index=True)
         run_stats.append(run_stat)
         run_coeffs.append(coeff)
@@ -137,79 +248,6 @@ def calculate_num_turbines(num_turbines, lcoe_map, lcoe_thresh, space_px, max_tu
     else:
         nturb = num_turbines
     return nturb
-
-
-def clear_symbols(container):
-    for sym in ['l', 'b', 'i', 'j', 'lcoe', 'num_turbines']:
-        if container.hasSymbols(sym):
-            container.removeSymbols(sym)
-
-
-def add_symbols(container, lcoe_map, nturb, space_px):
-    laenge = container.addSet('l', records=list(lcoe_map.index), description='laenge')
-    breite = container.addSet('b', records=list(lcoe_map.columns), description='breite')
-    abstd_l = container.addSet('i', records=list(range(0, space_px)), description='abstand in laenge')
-    abstd_b = container.addSet('j', records=list(range(0, space_px)), description='abstand in  breite')
-    container.addParameter('lcoe', domain=[laenge, breite], records=lcoe_map.stack().reset_index())
-    container.addParameter('num_turbines', domain=[], records=nturb)
-
-
-def run_optimization(gams_dict, gdx_out, n):
-    gms_exe_dir = gams_dict['gams_exe']
-    gms_model = gams_dict['gams_model']
-    subprocess.run(f'{gms_exe_dir}/gams {gms_model} gdx={gdx_out} lo=3 o=/dev/null --fnamelp=oploc{n}.lp', shell=True)
-
-
-def sliced_location_optimization(gams_dict, gams_container, lcoe_array, num_slices, num_turbines, space_px,
-                                 min_turbines=1000, max_turbines=10000, lcoe_thresh=85, gdx_out_string='base',
-                                 read_only=False, axis=0):
-
-    locations = pd.DataFrame()
-    lcoe_df = pd.DataFrame(data=lcoe_array.data)
-    num_pixels = np.ceil(np.round(lcoe_array.count().data, 0) / num_slices)
-    os.chdir(gams_dict['gdx_output'])
-
-    dim_max = lcoe_array.sizes['x'] if axis == 0 else lcoe_array.sizes['y']
-
-    j = 0
-    for _ in range(num_slices):
-        size = 0
-        i = j
-        while size <= num_pixels and i < dim_max:
-            if axis == 0:
-                lcoe_slice = lcoe_df.iloc[:, i]
-            elif axis == 1:
-                lcoe_slice = lcoe_df.iloc[i, :]
-            else:
-                raise ValueError('axis must be 0 or 1')
-            lcoe_slice = lcoe_slice.dropna()
-            i += 1
-            size += len(lcoe_slice)
-
-        if axis == 0:
-            lcoe_map = lcoe_df.iloc[:, j:i]
-        else:
-            lcoe_map = lcoe_df.iloc[j:i, :]
-
-        nturb = calculate_num_turbines(num_turbines, lcoe_map, lcoe_thresh, space_px, max_turbines, min_turbines)
-        logging.info(f'Number of turbines: {nturb}')
-
-        gdx_out = gams_dict['gdx_output'] / f'locations_{gdx_out_string}_{_}.gdx'
-        if not read_only:
-            clear_symbols(gams_container)
-            add_symbols(gams_container, lcoe_map, nturb, space_px)
-            gams_container.write(str(gams_dict['gdx_input']))
-            run_optimization(gams_dict, gdx_out, _)
-
-        results = gt.Container(system_directory=gamsdir.parent)
-        results.read(str(gdx_out), 'build')
-        locs = results.data['build'].records[['l', 'b', 'level']]
-        locs = locs.loc[locs['level'] > 0]
-        locations = pd.concat([locations, locs])
-        j = i
-
-    locations[['l', 'b']] = locations[['l', 'b']].astype(int)
-    return locations
 
 
 def locations_to_gdf(cost_array, locations, cost_name="LCOE", energy_array=None, power_array=None):
@@ -234,4 +272,3 @@ def locations_to_gdf(cost_array, locations, cost_name="LCOE", energy_array=None,
         cost_gdf['Power'] = power_array[locations['l'], locations['b']].data.diagonal()
 
     return cost_gdf.sort_values(by=cost_name).reset_index(drop=True)
-

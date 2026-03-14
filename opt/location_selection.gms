@@ -46,22 +46,12 @@ model siting / all /
 
 * parallel mode on
 options
-threads = 6,
+MIP = gurobi,
+threads = 4,
 optCR = 0.01,
 BRatio = 1,
 reslim = 16000
 ;
-
-*memoryemphasis 1
-$onecho > cplex.opt
-lpmethod 4
-fraccuts=-1
-solvefinal 0
-names no
-solutiontype 2
-writelp %fnamelp%
-$offecho
-siting.OptFile = 1;
 
 solve siting using MIP minimizing total_cost
 
