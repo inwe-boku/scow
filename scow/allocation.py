@@ -15,6 +15,7 @@ from scow.social_cost import get_social_cost_atlas
 from scow.stages import load_atlas_for_analysis
 from scow.utils import locations_to_gdf
 from social_cost_inference.atlas import SocialCostAtlas
+from social_cost_inference.optimization import OptimizationArtifacts, OptimizationRequest
 
 
 def load_energy_for_stage4(atlas, power):
@@ -74,40 +75,37 @@ def load_allocation_inputs(*, atlas_file: Path, scenario: str):
 
 def optimize_allocation(
     *,
-    objective: str,
-    scenario: str,
-    spacing: int,
-    num_turbines,
+    request: OptimizationRequest,
     power,
     energy,
     social_cost: xr.Dataset,
-    cost_threshold: float,
-    slice_count: int,
-    min_turbines: int,
-    max_turbines: int,
     logger: logging.Logger | logging.LoggerAdapter | None = None,
-) -> None:
+) -> OptimizationArtifacts:
     """Solve one stage-4 siting objective and write the canonical artifacts."""
 
     if logger is None:
         logger = configure_script_logging("stage4")
 
-    logger.info("Solving objective %s with threshold %s EUR/MWh", objective, cost_threshold)
-    cost_array = objective_cost_array(social_cost, objective)
-    locations_path = opt_locations_path(scenario, objective)
-    cost_path = opt_cost_path(scenario, objective)
-    metadata_path = opt_metadata_path(scenario, objective)
+    logger.info(
+        "Solving objective %s with threshold %s EUR/MWh",
+        request.objective,
+        request.cost_threshold,
+    )
+    cost_array = objective_cost_array(social_cost, request.objective)
+    locations_path = opt_locations_path(request.scenario, request.objective)
+    cost_path = opt_cost_path(request.scenario, request.objective)
+    metadata_path = opt_metadata_path(request.scenario, request.objective)
 
     locations = solve_objective_chunked(
         cost_array,
-        scenario=scenario,
-        objective=objective,
-        num_slices=slice_count,
-        num_turbines=num_turbines,
-        space_px=spacing,
-        lcoe_thresh=cost_threshold,
-        min_turbines=min_turbines,
-        max_turbines=max_turbines,
+        scenario=request.scenario,
+        objective=request.objective,
+        num_slices=request.slice_count,
+        num_turbines=request.num_turbines,
+        space_px=request.spacing,
+        lcoe_thresh=request.cost_threshold,
+        min_turbines=request.min_turbines,
+        max_turbines=request.max_turbines,
         axis=0,
     )
     locations.to_csv(locations_path)
@@ -115,29 +113,36 @@ def optimize_allocation(
     cost_at_best_locations = locations_to_gdf(
         cost_array,
         locations,
-        cost_name=objective,
+        cost_name=request.objective,
         energy_array=energy,
         power_array=power,
     )
     cost_at_best_locations = cost_at_best_locations.dropna(how="any", axis=0)
-    cost_at_best_locations = cost_at_best_locations.sort_values(by=objective)
+    cost_at_best_locations = cost_at_best_locations.sort_values(by=request.objective)
     cost_at_best_locations["CumSumEnergy"] = cost_at_best_locations["Energy"].cumsum() / 1000
     cost_at_best_locations.to_csv(cost_path)
 
     metadata = final_output_metadata(
         cost_array,
-        scenario=scenario,
-        objective=objective,
-        num_slices=slice_count,
-        num_turbines=num_turbines,
-        space_px=spacing,
-        lcoe_thresh=cost_threshold,
-        min_turbines=min_turbines,
-        max_turbines=max_turbines,
+        scenario=request.scenario,
+        objective=request.objective,
+        num_slices=request.slice_count,
+        num_turbines=request.num_turbines,
+        space_px=request.spacing,
+        lcoe_thresh=request.cost_threshold,
+        min_turbines=request.min_turbines,
+        max_turbines=request.max_turbines,
         axis=0,
     )
     metadata["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
     metadata["locations_file"] = locations_path.name
     metadata["cost_file"] = cost_path.name
     metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n")
-    logger.info("Wrote stage-4 costs for %s to %s", objective, cost_path)
+    logger.info("Wrote stage-4 costs for %s to %s", request.objective, cost_path)
+    return OptimizationArtifacts(
+        scenario=request.scenario,
+        objective=request.objective,
+        locations_path=locations_path,
+        cost_path=cost_path,
+        metadata_path=metadata_path,
+    )
