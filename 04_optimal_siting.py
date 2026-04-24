@@ -12,7 +12,7 @@ def main() -> None:
     logger.info("Loading atlas and social-cost inputs for stage 4")
     power, energy, social_cost_atlas = load_allocation_inputs(
         atlas_file=atlas_path,
-        scenario=study.scenario,
+        study=study,
     )
     social_cost = open_social_cost_atlas(social_cost_atlas)
     try:

@@ -11,6 +11,7 @@ class SpatialDecisionStudy(Protocol):
     """Minimal study seam for the future reusable core."""
 
     scenario: str
+    artifact_key: str
 
     def estimation_spec(self) -> Any:
         """Return the project-local estimation specification for the current study."""

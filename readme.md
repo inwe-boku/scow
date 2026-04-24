@@ -1,6 +1,28 @@
 # Inferring the Local Social Cost of Wind Turbines
 
-This project estimates the valuation of spatial attributes as implied by the Lower Austrian wind power zoning. Data processing uses the [cleo package](https://github.com/sebwehrle/cleo).
+This project estimates the valuation of spatial attributes as implied by authorities' renewable-energy zoning decisions. Data processing uses the [cleo package](https://github.com/sebwehrle/cleo).
+
+## Study Coverage
+
+The repository now tracks three explicit case-study targets:
+
+- `lower_austria_wind_2014`
+- `lower_austria_pv_2022`
+- `lower_austria_wind_2024`
+
+Current implementation status:
+
+- only `lower_austria_wind_2014` is implemented end-to-end in the numbered pipeline
+- `lower_austria_wind_2024` now has an explicit live stage-1 payload and explicit stage-2 to stage-5 artifact namespaces, but it is still not marked executable because the 2024 covariate recipe and missing-input inventory are not yet closed out
+- `lower_austria_pv_2022` has core public documents ingested, but no dedicated stage-1 data bundle or code path yet
+
+Important clarification:
+
+- the older runtime label `modern` is a legacy internal scenario label in parts of the current codebase
+- it is not a canonical study id
+- the legacy runtime modes `2014` and `modern` both remain supported for direct workflow comparisons
+- explicit study ids keep a separate artifact namespace and do not accept conflicting runtime-scenario overrides
+- the tracked high-level status file is [PROJECT_STATUS.md](/Users/nwesec/code/scow/PROJECT_STATUS.md)
 
 ## Data
 The analysis includes proprietary data which must be obtained from:
@@ -62,8 +84,8 @@ import shutil
 from scow.study import ScowStudy
 
 repo = Path(__file__).resolve().parent
-study = ScowStudy(
-    scenario="2014",          # "2014" or "modern"
+study = ScowStudy.from_study_id(
+    "lower_austria_wind_2014",
     num_runs=500,              # repeated discrete-choice iterations
     selection_criterion="BIC", # "AIC" or "BIC"
     seed=42,                   # stage-2 replication seed
@@ -72,6 +94,7 @@ study = ScowStudy(
 )
 
 data_ver = study.scenario
+artifact_key = study.artifact_key
 num_runs = str(study.num_runs)
 selection_criterion = study.selection_criterion
 replication_seed = study.seed
@@ -83,16 +106,48 @@ rdir = Path(shutil.which("Rscript") or "Rscript")  # resolved from PATH at runti
 
 The selected `study` is now the authoritative home for the current project defaults and assumptions. The legacy module-level aliases such as `data_ver`, `num_runs`, `spacing`, and `nturbines` are still exported for compatibility with the current scripts.
 
+Contract note:
+
+- `study.scenario` controls runtime semantics such as turbine family and atlas loading
+- `study.artifact_key` controls the artifact namespace written by stages 2 to 5
+- in legacy scenario mode, `artifact_key == scenario`
+- in explicit study mode, `artifact_key` is the study id while `scenario` remains the runtime label
+
+For explicit study-level project planning rather than the legacy runtime scenario switch, use:
+
+- `scow.study_registry.get_study(...)`
+- `scow.pipeline.build_pipeline(...)`
+
+Those helpers expose the three tracked study ids listed above and clarify which study is executable today.
+
+Example:
+
+```python
+from scow.pipeline import build_pipeline
+
+pipeline = build_pipeline("lower_austria_wind_2024")
+print(pipeline.executable)      # False
+print(pipeline.stages[0].status)  # "implemented"
+```
+
+To run the live 2024 stage-1 payload only:
+
+```python
+from scow.study import ScowStudy
+
+study = ScowStudy.from_study_id("lower_austria_wind_2024")
+```
+
 `data/results` and `figures` are created automatically by the path helpers when downstream stages write outputs.
 
 ### Data Processing
 Execute the scripts sequentially:
 
-1. **01_spatial_data.py**: Retrieves and preprocesses wind resources data from the Global Wind Atlas and other spatial characteristics, saving `dc_data_2014.csv` and `dc_data_modern.csv` in `data/processed`.
+1. **01_spatial_data.py**: Retrieves and preprocesses wind resources data from the Global Wind Atlas and other spatial characteristics. The `lower_austria_wind_2014` runtime still writes `dc_data_2014.csv` and `dc_data_modern.csv` in `data/processed`. The explicit `lower_austria_wind_2024` stage-1 payload writes `dc_data_lower_austria_wind_2024.csv`.
 
 2. **02_estimate_wtp.py**: A Python-first stage-2 driver around R code in `discrete_choice.R`, producing files like `spatialdc_coefs_{datafile}_{run_name}.csv` in `data/results`.
 
-   Stage 2 now also writes `spatialdc_meta_{datafile}_{run_name}.json` sidecars so repeated model-search runs only reuse cached artifacts when the scenario, seed, run count, integer partition, and exact term list still match.
+   Stage 2 now also writes `spatialdc_meta_{datafile}_{run_name}.json` sidecars so repeated model-search runs only reuse cached artifacts when the artifact key, seed, run count, integer partition, and exact term list still match.
 
    The primary configuration surface is now the Python `EstimationSpec` / preset API in `scow.estimation`. The script still runs directly with no arguments, and also supports a thin CLI for common overrides, for example:
 
@@ -100,17 +155,30 @@ Execute the scripts sequentially:
    python 02_estimate_wtp.py --preset baseline --single --num-runs 50
    ```
 
+   For explicit studies, conflicting `--scenario` overrides are rejected. For legacy scenario mode, `2014` and `modern` remain valid parallel runs.
+
    For noncanonical experimental runs from Python, use an explicit `output_label` so experimental artifacts do not overwrite the canonical baseline namespace.
 
    The legacy `pval` / significance-star outputs are retained for compatibility with the current tables and selection loop, but they summarize coefficient stability across repeated negative samples rather than classical single-fit logit inference.
 
 3. **03_postprocess_wtp.py**: Computes the local social-cost artifact and writes `soco.nc` in `data/results`.
 
-4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, reusing validated chunk caches under `opt/` when possible and writing final results to `opt_locations_{data_ver}_{objective}.csv` and `opt_cost_{data_ver}_{objective}.csv` in `data/results`.
+4. **04_optimal_siting.py**: Solves the location optimization problem through the Python-native `gurobipy` stage-4 path, reusing validated chunk caches under `opt/` when possible and writing final results to `opt_locations_{artifact_key}_{objective}.csv` and `opt_cost_{artifact_key}_{objective}.csv` in `data/results`.
 
-   Stage 4 now also writes `opt_meta_{data_ver}_{objective}.json` sidecars and uses shared validators for the final `opt_locations_*` / `opt_cost_*` / `opt_meta_*` bundle contract.
+   Stage 4 now also writes `opt_meta_{artifact_key}_{objective}.json` sidecars and uses shared validators for the final `opt_locations_*` / `opt_cost_*` / `opt_meta_*` bundle contract.
 
-5. **05_postprocess_sites.py**: Unified reporting stage for both WTP/social-cost outputs and site-allocation outputs. It reads `soco.nc` and stage-4 cost outputs, then writes the WTP maps/distributions, turbine-allocation maps, social-cost curve, and LaTeX cost comparison table.
+5. **05_postprocess_sites.py**: Unified reporting stage for both WTP/social-cost outputs and site-allocation outputs. It reads `soco_{artifact_key}.nc` plus the matching stage-4 outputs, then writes the WTP maps/distributions, turbine-allocation maps, social-cost curve, and LaTeX cost comparison table under the same artifact key. The 2014 baseline still keeps the canonical unsuffixed root outputs.
+
+## Status Tracking
+
+The repository now keeps the high-level study and implementation status in:
+
+- [PROJECT_STATUS.md](/Users/nwesec/code/scow/PROJECT_STATUS.md)
+
+The explicit study registry and pipeline-builder surface live in:
+
+- [scow/study_registry.py](/Users/nwesec/code/scow/scow/study_registry.py)
+- [scow/pipeline.py](/Users/nwesec/code/scow/scow/pipeline.py)
 
 ### Validation
 The repository now includes a small focused validation suite covering:

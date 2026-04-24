@@ -9,6 +9,7 @@ class ReportingRequest:
     """Minimal reusable description of one reporting run."""
 
     scenario: str
+    artifact_key: str
     area_name: str
     generation_target: float
 

@@ -7,8 +7,8 @@ from scow.study import ScowStudy
 # %% config
 repo = Path(__file__).resolve().parent
 atlas_path = repo / "data" / "atlas"
-study = ScowStudy(scenario="2014")
-data_ver = study.scenario  # "2014" or "modern"
+study = ScowStudy.from_study_id("lower_austria_wind_2014")
+data_ver = study.scenario  # legacy runtime scenario label used by the current executable workflow
 
 num_runs = str(study.num_runs)
 selection_criterion = study.selection_criterion

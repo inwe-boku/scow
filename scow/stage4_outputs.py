@@ -17,9 +17,9 @@ def _require_file(path):
     return path
 
 
-def load_stage4_locations(scenario: str, objective: str) -> pd.DataFrame:
+def load_stage4_locations(artifact_key: str, objective: str) -> pd.DataFrame:
     """Load the final stage-4 locations CSV as the plain `l`/`b` table."""
-    path = _require_file(opt_locations_path(scenario, objective))
+    path = _require_file(opt_locations_path(artifact_key, objective))
     locations = pd.read_csv(path)
     if "Unnamed: 0" in locations.columns:
         locations = locations.drop(columns=["Unnamed: 0"])
@@ -28,25 +28,25 @@ def load_stage4_locations(scenario: str, objective: str) -> pd.DataFrame:
     return locations
 
 
-def load_stage4_costs(scenario: str, objective: str):
+def load_stage4_costs(artifact_key: str, objective: str):
     """Load the final stage-4 cost CSV as a GeoDataFrame."""
-    path = _require_file(opt_cost_path(scenario, objective))
+    path = _require_file(opt_cost_path(artifact_key, objective))
     return to_geopandas(pd.read_csv(path))
 
 
-def load_stage4_metadata(scenario: str, objective: str) -> dict:
+def load_stage4_metadata(artifact_key: str, objective: str) -> dict:
     """Load the final stage-4 metadata JSON."""
-    path = _require_file(opt_metadata_path(scenario, objective))
+    path = _require_file(opt_metadata_path(artifact_key, objective))
     return json.loads(path.read_text())
 
 
-def load_stage4_bundle(scenario: str, objective: str, validate: bool = True) -> dict:
+def load_stage4_bundle(artifact_key: str, objective: str, validate: bool = True) -> dict:
     """Load final stage-4 locations, costs, and metadata together."""
-    locations = load_stage4_locations(scenario, objective)
-    costs = load_stage4_costs(scenario, objective)
-    metadata = load_stage4_metadata(scenario, objective)
+    locations = load_stage4_locations(artifact_key, objective)
+    costs = load_stage4_costs(artifact_key, objective)
+    metadata = load_stage4_metadata(artifact_key, objective)
 
     if validate:
-        validate_stage4_bundle(locations, costs, metadata, scenario=scenario, objective=objective)
+        validate_stage4_bundle(locations, costs, metadata, artifact_key=artifact_key, objective=objective)
 
     return {"locations": locations, "costs": costs, "metadata": metadata}

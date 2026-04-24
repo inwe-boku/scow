@@ -118,6 +118,10 @@ def latex_cost_comparison_path() -> Path:
     return repo / "cost_comparison.tex"
 
 
+def latex_cost_comparison_variant_path(scenario: str) -> Path:
+    return repo / f"cost_comparison{_scenario_suffix(scenario)}.tex"
+
+
 def map_soco_figure_path(scenario: str) -> Path:
     return figures_dir() / f"map_soco_{scenario}.png"
 
@@ -134,9 +138,9 @@ def soco_facet_figure_path(scenario: str) -> Path:
     return figures_dir() / f"soco_facet{_scenario_suffix(scenario)}.png"
 
 
-def map_turbines_figure_path(objective: str) -> Path:
-    return figures_dir() / f"map_turbines_{objective}.png"
+def map_turbines_figure_path(objective: str, scenario: str = "2014") -> Path:
+    return figures_dir() / f"map_turbines_{objective}{_scenario_suffix(scenario)}.png"
 
 
-def cost_curve_figure_path() -> Path:
-    return figures_dir() / "cost_curve.png"
+def cost_curve_figure_path(scenario: str = "2014") -> Path:
+    return figures_dir() / f"cost_curve{_scenario_suffix(scenario)}.png"

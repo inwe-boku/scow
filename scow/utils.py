@@ -73,7 +73,7 @@ def _cached_run_matches_terms(
         metadata = json.loads(metadata_file.read_text())
     except (OSError, json.JSONDecodeError):
         return False
-    if metadata.get("scenario") != data_file:
+    if metadata.get("artifact_key") != data_file:
         return False
     if metadata.get("run_name") != _artifact_run_name(run_name):
         return False

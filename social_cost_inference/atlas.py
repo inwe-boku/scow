@@ -9,6 +9,7 @@ class SocialCostAtlas:
     """Path-based handle for the current social-cost artifact seam."""
 
     scenario: str
+    artifact_key: str
     netcdf_path: Path
 
 

@@ -14,6 +14,7 @@ from scow.paths import (
     cost_curve_figure_path,
     dist_soco_figure_path,
     latex_cost_comparison_path,
+    latex_cost_comparison_variant_path,
     map_lcoe_figure_path,
     map_soco_figure_path,
     map_turbines_figure_path,
@@ -53,12 +54,15 @@ def generate_reports(
     state = state[["BL", "geometry"]].dissolve(by="BL").reset_index()
     state = state[state.BL == request.area_name]
 
-    social_cost_atlas = get_social_cost_atlas(request.scenario)
+    social_cost_atlas = get_social_cost_atlas(
+        request.artifact_key,
+        runtime_scenario=request.scenario,
+    )
     social_cost = open_social_cost_atlas(social_cost_atlas, engine="netcdf4")
     try:
-        opt_cost_soco = validate_stage4_costs(load_stage4_costs(request.scenario, "soco"), "soco")
-        opt_cost_loco = validate_stage4_costs(load_stage4_costs(request.scenario, "loco"), "loco")
-        opt_cost_lcoe = validate_stage4_costs(load_stage4_costs(request.scenario, "lcoe"), "lcoe")
+        opt_cost_soco = validate_stage4_costs(load_stage4_costs(request.artifact_key, "soco"), "soco")
+        opt_cost_loco = validate_stage4_costs(load_stage4_costs(request.artifact_key, "loco"), "loco")
+        opt_cost_lcoe = validate_stage4_costs(load_stage4_costs(request.artifact_key, "lcoe"), "lcoe")
 
         lcoe = social_cost["min_lcoe"].copy()
         lcoe.name = "Quasi-LCOE"
@@ -69,7 +73,7 @@ def generate_reports(
         ax.set_title("")
         ax.axis("off")
         plt.tight_layout()
-        plt.savefig(map_soco_figure_path(request.scenario), dpi=300)
+        plt.savefig(map_soco_figure_path(request.artifact_key), dpi=300)
         plt.close()
 
         fig, ax = plt.subplots(figsize=(7, 5))
@@ -77,7 +81,7 @@ def generate_reports(
         ax.set_title("")
         ax.axis("off")
         plt.tight_layout()
-        plt.savefig(map_lcoe_figure_path(request.scenario), dpi=300)
+        plt.savefig(map_lcoe_figure_path(request.artifact_key), dpi=300)
         plt.close()
         logger.info("Maps of Local Social Cost and LCOE plotted")
 
@@ -87,7 +91,7 @@ def generate_reports(
         plt.grid(alpha=0.4)
         ax.set_axisbelow(True)
         plt.tight_layout()
-        plt.savefig(dist_soco_figure_path(request.scenario), dpi=300)
+        plt.savefig(dist_soco_figure_path(request.artifact_key), dpi=300)
         plt.close()
         logger.info("Cost distributions plotted")
 
@@ -103,7 +107,7 @@ def generate_reports(
         for j in range(i + 1, num_rows * num_cols):
             fig.delaxes(axes[j])
         plt.tight_layout()
-        plt.savefig(soco_facet_figure_path(request.scenario), dpi=300)
+        plt.savefig(soco_facet_figure_path(request.artifact_key), dpi=300)
         plt.close()
         logger.info("Facet of social cost variables plotted")
 
@@ -136,8 +140,11 @@ def generate_reports(
             opt_cost_soco,
             request.generation_target,
         )
-        latex_cost_comparison_path().write_text(latex_cost_comparison_fragment(cost_comparison))
-        logger.info("Wrote cost comparison table to %s", latex_cost_comparison_path())
+        table_path = latex_cost_comparison_path()
+        if request.artifact_key != "2014":
+            table_path = latex_cost_comparison_variant_path(request.artifact_key)
+        table_path.write_text(latex_cost_comparison_fragment(cost_comparison))
+        logger.info("Wrote cost comparison table to %s", table_path)
 
         for objective, df in zip(
             ["lcoe", "loco", "soco"],
@@ -156,7 +163,7 @@ def generate_reports(
                 logger.warning("Basemap fetch failed for %s: %s", objective, exc)
             ax.set_axis_off()
             plt.tight_layout()
-            plt.savefig(map_turbines_figure_path(objective), dpi=300)
+            plt.savefig(map_turbines_figure_path(objective, request.artifact_key), dpi=300)
             plt.close()
 
         logger.info("Maps of optimal wind turbine sites saved")
@@ -175,7 +182,7 @@ def generate_reports(
         ax.set_axisbelow(True)
         plt.legend(["Quasi-LCOE", "Local Social Cost"], loc="upper left")
         plt.tight_layout()
-        plt.savefig(cost_curve_figure_path(), dpi=300)
+        plt.savefig(cost_curve_figure_path(request.artifact_key), dpi=300)
         plt.close()
 
         logger.info("Social cost curve saved")
@@ -184,14 +191,18 @@ def generate_reports(
 
     return ReportArtifacts(
         figure_paths=(
-            map_soco_figure_path(request.scenario),
-            map_lcoe_figure_path(request.scenario),
-            dist_soco_figure_path(request.scenario),
-            soco_facet_figure_path(request.scenario),
-            map_turbines_figure_path("lcoe"),
-            map_turbines_figure_path("loco"),
-            map_turbines_figure_path("soco"),
-            cost_curve_figure_path(),
+            map_soco_figure_path(request.artifact_key),
+            map_lcoe_figure_path(request.artifact_key),
+            dist_soco_figure_path(request.artifact_key),
+            soco_facet_figure_path(request.artifact_key),
+            map_turbines_figure_path("lcoe", request.artifact_key),
+            map_turbines_figure_path("loco", request.artifact_key),
+            map_turbines_figure_path("soco", request.artifact_key),
+            cost_curve_figure_path(request.artifact_key),
         ),
-        table_paths=(latex_cost_comparison_path(),),
+        table_paths=(
+            latex_cost_comparison_path()
+            if request.artifact_key == "2014"
+            else latex_cost_comparison_variant_path(request.artifact_key),
+        ),
     )

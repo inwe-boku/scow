@@ -11,6 +11,7 @@ class EstimationRequest:
     """Minimal reusable description of one estimation run."""
 
     scenario: str
+    artifact_key: str
     method: str
     search_mode: str
     num_runs: int
@@ -24,6 +25,7 @@ class EstimationArtifacts:
     """Minimal reusable metadata about one estimation result set."""
 
     scenario: str
+    artifact_key: str
     selected_run_name: str
     output_label: str | None = None
 

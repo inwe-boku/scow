@@ -5,13 +5,14 @@ from pathlib import Path
 import xarray as xr
 
 from scow.artifact_validators import validate_soco_dataset
+from scow.analysis_atlas import load_analysis_atlas
 from scow.logging_utils import configure_script_logging
 from scow.paths import parsimonious_name_path, soco_path
 from scow.postprocess_wtp_helpers import (
     build_interaction_layers,
     compute_social_cost_dataset,
 )
-from scow.stages import load_atlas_for_analysis
+from scow.study import ScowStudy
 from scow.utils import postprocess_spatialdc
 from social_cost_inference.atlas import SocialCostAtlas
 
@@ -20,9 +21,9 @@ def build_social_cost_atlas(
     *,
     repo_root: Path,
     atlas_file: Path,
-    scenario: str,
+    study: ScowStudy,
 ) -> SocialCostAtlas:
-    """Build the current stage-3 social-cost artifact for one scenario.
+    """Build the current stage-3 social-cost artifact for one explicit study.
 
     Parameters
     ----------
@@ -30,8 +31,10 @@ def build_social_cost_atlas(
         Repository root used for stage-2 artifact lookup.
     atlas_file:
         Path to the CLEO atlas consumed by the analysis stages.
-    scenario:
-        Scenario label, currently `2014` or `modern`.
+    study:
+        Explicit project-local study selection. Its runtime scenario still controls
+        turbine and atlas loading, while its social-cost key controls the stage-2
+        lookup namespace and the written stage-3 artifact name.
 
     Returns
     -------
@@ -40,14 +43,15 @@ def build_social_cost_atlas(
     """
 
     logger = configure_script_logging("stage3")
-    parsimonious_name = parsimonious_name_path(scenario).read_text().strip()
+    artifact_key = study.artifact_key
+    parsimonious_name = parsimonious_name_path(artifact_key).read_text().strip()
 
-    parsimonious_coeffs, _ = postprocess_spatialdc(repo_root, scenario, parsimonious_name)
+    parsimonious_coeffs, _ = postprocess_spatialdc(repo_root, artifact_key, parsimonious_name)
     parsimonious_coeffs["valuation"] = (
         parsimonious_coeffs["estimate"] / parsimonious_coeffs.loc["min_lcoe", "estimate"]
     )
 
-    atlas = load_atlas_for_analysis({"atlas_path": atlas_file, "scenario": scenario})
+    atlas = load_analysis_atlas(study, atlas_file)
     landscape_data = build_interaction_layers(
         atlas.landscape.data,
         list(parsimonious_coeffs.index),
@@ -58,16 +62,34 @@ def build_social_cost_atlas(
     spatial_data = landscape_data[list(parsimonious_coeffs.index)]
 
     social_cost = compute_social_cost_dataset(spatial_data, parsimonious_coeffs["valuation"])
-    output_path = soco_path(scenario)
+    output_path = soco_path(artifact_key)
     social_cost.to_netcdf(output_path)
     logger.info("Wrote social-cost dataset to %s", output_path)
-    return SocialCostAtlas(scenario=scenario, netcdf_path=output_path)
+    return SocialCostAtlas(
+        scenario=study.scenario,
+        artifact_key=artifact_key,
+        netcdf_path=output_path,
+    )
 
 
-def get_social_cost_atlas(scenario: str) -> SocialCostAtlas:
-    """Return the current path-based social-cost artifact handle for one scenario."""
+def get_social_cost_atlas(
+    scenario: str | ScowStudy,
+    *,
+    runtime_scenario: str | None = None,
+) -> SocialCostAtlas:
+    """Return the current path-based social-cost artifact handle for one study key."""
 
-    return SocialCostAtlas(scenario=scenario, netcdf_path=soco_path(scenario))
+    if isinstance(scenario, ScowStudy):
+        runtime_scenario = scenario.scenario
+        artifact_key = scenario.artifact_key
+    else:
+        runtime_scenario = scenario if runtime_scenario is None else runtime_scenario
+        artifact_key = scenario
+    return SocialCostAtlas(
+        scenario=runtime_scenario,
+        artifact_key=artifact_key,
+        netcdf_path=soco_path(artifact_key),
+    )
 
 
 def open_social_cost_atlas(

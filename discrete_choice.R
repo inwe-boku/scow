@@ -238,7 +238,7 @@ main <- function() {
   write_csv(modstats, sprintf("data/results/spatialdc_loglik_%s_%s.csv", datafile, specif))
   jsonlite::write_json(
     list(
-      scenario = datafile,
+      artifact_key = datafile,
       run_name = specif,
       num_runs = num_runs,
       seed = seed,

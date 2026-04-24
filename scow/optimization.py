@@ -179,7 +179,7 @@ def _hash_chunk_metadata_list(metadata_list) -> str:
 
 def _chunk_cache_metadata(
     *,
-    scenario: str,
+    artifact_key: str,
     objective: str,
     chunk_index: int,
     chunk_info,
@@ -191,7 +191,7 @@ def _chunk_cache_metadata(
     time_limit_s: int | None,
 ):
     return {
-        "scenario": scenario,
+        "artifact_key": artifact_key,
         "objective": objective,
         "chunk_index": int(chunk_index),
         "axis": int(chunk_info["axis"]),
@@ -237,7 +237,7 @@ def _write_chunk_cache(cache_path: Path, meta_path: Path, locations, metadata):
 def final_output_metadata(
     cost_array,
     *,
-    scenario: str,
+    artifact_key: str,
     objective: str,
     num_slices: int,
     num_turbines,
@@ -265,7 +265,7 @@ def final_output_metadata(
         )
         chunk_metadata.append(
             _chunk_cache_metadata(
-                scenario=scenario,
+                artifact_key=artifact_key,
                 objective=objective,
                 chunk_index=chunk_index,
                 chunk_info=chunk_info,
@@ -279,7 +279,7 @@ def final_output_metadata(
         )
 
     return {
-        "scenario": scenario,
+        "artifact_key": artifact_key,
         "objective": objective,
         "spacing": int(space_px),
         "num_slices": int(num_slices),
@@ -295,7 +295,7 @@ def final_output_metadata(
 def solve_objective_chunked(
     cost_array,
     *,
-    scenario: str,
+    artifact_key: str,
     objective: str,
     num_slices: int,
     num_turbines,
@@ -324,7 +324,7 @@ def solve_objective_chunked(
             axis=axis,
         )
         metadata = _chunk_cache_metadata(
-            scenario=scenario,
+            artifact_key=artifact_key,
             objective=objective,
             chunk_index=chunk_index,
             chunk_info=chunk_info,
@@ -335,8 +335,8 @@ def solve_objective_chunked(
             mip_gap=mip_gap,
             time_limit_s=time_limit_s,
         )
-        cache_path = chunk_locations_cache_path(scenario, objective, chunk_index)
-        meta_path = chunk_locations_meta_path(scenario, objective, chunk_index)
+        cache_path = chunk_locations_cache_path(artifact_key, objective, chunk_index)
+        meta_path = chunk_locations_meta_path(artifact_key, objective, chunk_index)
         cached = _load_cached_chunk(cache_path, meta_path, metadata)
 
         if cached is not None:

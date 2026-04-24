@@ -123,7 +123,7 @@ def test_final_output_metadata_fingerprint_is_stable_and_sensitive_to_settings()
 
     first = final_output_metadata(
         cost_array,
-        scenario="2014",
+        artifact_key="2014",
         objective="lcoe",
         num_slices=2,
         num_turbines="auto",
@@ -134,7 +134,7 @@ def test_final_output_metadata_fingerprint_is_stable_and_sensitive_to_settings()
     )
     second = final_output_metadata(
         cost_array,
-        scenario="2014",
+        artifact_key="2014",
         objective="lcoe",
         num_slices=2,
         num_turbines="auto",
@@ -145,7 +145,7 @@ def test_final_output_metadata_fingerprint_is_stable_and_sensitive_to_settings()
     )
     changed = final_output_metadata(
         cost_array,
-        scenario="2014",
+        artifact_key="2014",
         objective="lcoe",
         num_slices=2,
         num_turbines="auto",

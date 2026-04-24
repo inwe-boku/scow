@@ -8,11 +8,12 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from scow.analysis_atlas import load_analysis_atlas
 from scow.logging_utils import configure_script_logging
 from scow.optimization import final_output_metadata, solve_objective_chunked
 from scow.paths import opt_cost_path, opt_locations_path, opt_metadata_path
 from scow.social_cost import get_social_cost_atlas
-from scow.stages import load_atlas_for_analysis
+from scow.study import ScowStudy
 from scow.utils import locations_to_gdf
 from social_cost_inference.atlas import SocialCostAtlas
 from social_cost_inference.optimization import OptimizationArtifacts, OptimizationRequest
@@ -59,17 +60,18 @@ def objective_cost_array(social_cost, objective: str):
     raise ValueError(f"Unknown stage-4 objective: {objective}")
 
 
-def load_allocation_inputs(*, atlas_file: Path, scenario: str):
+def load_allocation_inputs(*, atlas_file: Path, study: ScowStudy):
     """Load the atlas-derived inputs consumed by stage 4."""
 
-    atlas = load_atlas_for_analysis(
-        {"atlas_path": atlas_file, "scenario": scenario},
+    atlas = load_analysis_atlas(
+        study,
+        atlas_file,
         require_optimal_power=True,
         require_optimal_energy=True,
     )
     power = atlas.wind.data.optimal_power.compute()
     energy = load_energy_for_stage4(atlas, power)
-    social_cost_atlas = get_social_cost_atlas(scenario)
+    social_cost_atlas = get_social_cost_atlas(study)
     return power, energy, social_cost_atlas
 
 
@@ -92,13 +94,13 @@ def optimize_allocation(
         request.cost_threshold,
     )
     cost_array = objective_cost_array(social_cost, request.objective)
-    locations_path = opt_locations_path(request.scenario, request.objective)
-    cost_path = opt_cost_path(request.scenario, request.objective)
-    metadata_path = opt_metadata_path(request.scenario, request.objective)
+    locations_path = opt_locations_path(request.artifact_key, request.objective)
+    cost_path = opt_cost_path(request.artifact_key, request.objective)
+    metadata_path = opt_metadata_path(request.artifact_key, request.objective)
 
     locations = solve_objective_chunked(
         cost_array,
-        scenario=request.scenario,
+        artifact_key=request.artifact_key,
         objective=request.objective,
         num_slices=request.slice_count,
         num_turbines=request.num_turbines,
@@ -124,7 +126,7 @@ def optimize_allocation(
 
     metadata = final_output_metadata(
         cost_array,
-        scenario=request.scenario,
+        artifact_key=request.artifact_key,
         objective=request.objective,
         num_slices=request.slice_count,
         num_turbines=request.num_turbines,
@@ -141,6 +143,7 @@ def optimize_allocation(
     logger.info("Wrote stage-4 costs for %s to %s", request.objective, cost_path)
     return OptimizationArtifacts(
         scenario=request.scenario,
+        artifact_key=request.artifact_key,
         objective=request.objective,
         locations_path=locations_path,
         cost_path=cost_path,

@@ -71,6 +71,7 @@ class EstimationSpec:
     float_variables: tuple[str, ...]
     protected_variables: tuple[str, ...]
     restricted_data_variables: tuple[str, ...]
+    artifact_key: str
     output_label: str | None = None
     tag: str | None = None
 
@@ -87,6 +88,8 @@ class EstimationSpec:
             raise ValueError(f"Unsupported selection criterion: {self.selection_criterion}")
         if self.num_runs <= 0:
             raise ValueError("num_runs must be a positive integer")
+        if not str(self.artifact_key).strip():
+            raise ValueError("artifact_key must be non-empty")
 
         binary_variables = _dedupe_preserve_order(self.binary_variables)
         float_variables = _dedupe_preserve_order(self.float_variables)
@@ -124,7 +127,11 @@ class EstimationSpec:
 
     @property
     def parsimonious_name_file(self) -> Path:
-        return parsimonious_name_path(self.scenario, output_label=self.output_label)
+        return parsimonious_name_path(self.artifact_key, output_label=self.output_label)
+
+    @property
+    def data_key(self) -> str:
+        return self.artifact_key
 
     @property
     def canonical_output_namespace(self) -> bool:
@@ -142,6 +149,7 @@ class EstimationSpec:
             "float_variables": self.float_variables,
             "protected_variables": self.protected_variables,
             "restricted_data_variables": self.restricted_data_variables,
+            "artifact_key": self.artifact_key,
             "output_label": self.output_label,
             "tag": self.tag,
         }
@@ -149,7 +157,10 @@ class EstimationSpec:
         return EstimationSpec(**values)
 
     def for_scenario(self, scenario: str) -> "EstimationSpec":
-        return self._updated(scenario=scenario)
+        updates = {"scenario": scenario}
+        if self.artifact_key == self.scenario:
+            updates["artifact_key"] = scenario
+        return self._updated(**updates)
 
     def using_method(self, method: str) -> "EstimationSpec":
         return self._updated(method=method)
@@ -195,6 +206,9 @@ class EstimationSpec:
     def with_output_label(self, output_label: str | None) -> "EstimationSpec":
         return self._updated(output_label=output_label)
 
+    def with_artifact_key(self, artifact_key: str) -> "EstimationSpec":
+        return self._updated(artifact_key=artifact_key)
+
 
 @dataclass(frozen=True)
 class EstimationResult:
@@ -220,14 +234,14 @@ class EstimationResult:
 
     def coef_path(self, run_name: str) -> Path:
         return coefs_path(
-            self.spec.scenario,
+            self.spec.artifact_key,
             _artifact_run_name(run_name),
             output_label=self.spec.output_label,
         )
 
     def loglik_path(self, run_name: str) -> Path:
         return loglik_path(
-            self.spec.scenario,
+            self.spec.artifact_key,
             _artifact_run_name(run_name),
             output_label=self.spec.output_label,
         )
@@ -242,7 +256,7 @@ class EstimationResult:
 
     def summary(self) -> str:
         return (
-            f"scenario={self.spec.scenario}, method={self.spec.method}, "
+            f"scenario={self.spec.scenario}, artifact_key={self.spec.artifact_key}, method={self.spec.method}, "
             f"search_mode={self.spec.search_mode}, selected={self.selected_run_name}, "
             f"runs={len(self.executed_run_names)}"
         )
@@ -263,6 +277,7 @@ class _PresetNamespace:
             float_variables=BASELINE_FLOAT_VARIABLES,
             protected_variables=BASELINE_PROTECTED_VARIABLES,
             restricted_data_variables=BASELINE_RESTRICTED_DATA_VARIABLES,
+            artifact_key="2014",
             tag=None,
         )
 
@@ -285,9 +300,22 @@ def estimation_request_to_spec(
 ) -> EstimationSpec:
     """Map a reusable stage-2 request onto the current SCOW estimation spec."""
 
+    study_id = getattr(study, "resolved_study_id", None)
+    if study_id is not None and request.scenario != study.scenario:
+        raise ValueError(
+            f"Explicit study {study_id!r} uses runtime scenario {study.scenario!r}; "
+            f"got conflicting request scenario {request.scenario!r}"
+        )
+    if study_id is not None and request.artifact_key != study.artifact_key:
+        raise ValueError(
+            f"Explicit study {study_id!r} uses artifact key {study.artifact_key!r}; "
+            f"got conflicting request artifact key {request.artifact_key!r}"
+        )
+
     spec = (
         study.estimation_spec()
         .for_scenario(request.scenario)
+        .with_artifact_key(request.artifact_key)
         .using_method(request.method)
         .with_num_runs(request.num_runs)
         .with_selection_criterion(request.selection_criterion)
@@ -308,6 +336,7 @@ def estimation_result_to_artifacts(result: EstimationResult) -> EstimationArtifa
 
     return EstimationArtifacts(
         scenario=result.spec.scenario,
+        artifact_key=result.spec.artifact_key,
         selected_run_name=result.selected_run_name,
         output_label=result.spec.output_label,
     )
@@ -441,7 +470,7 @@ def _estimate_spatial_dc(
     if compute:
         subprocess_rscript(
             str(repo),
-            spec.scenario,
+            spec.artifact_key,
             str(spec.num_runs),
             artifact_run_name,
             str(integer_count),
@@ -452,7 +481,7 @@ def _estimate_spatial_dc(
 
     coeff, loglik = postprocess_spatialdc(
         repo,
-        spec.scenario,
+        spec.artifact_key,
         artifact_run_name,
         output_label=spec.output_label,
     )
@@ -488,14 +517,14 @@ def _write_estimates_report(
 ) -> Path:
     latex_coeffs = coeffs_to_latex(full_coefs, parsimonious_coeffs, 5)
     latex_stats = stats_to_latex(full_stats, parsimonious_stats)
-    outpath = latex_estimates_path(spec.scenario, output_label=spec.output_label)
+    outpath = latex_estimates_path(spec.artifact_key, output_label=spec.output_label)
     outpath.write_text(latex_coeffs + "\n\\midrule\n" + latex_stats)
     return outpath
 
 
 def _write_valuation_report(spec: EstimationSpec, parsimonious_name: str, parsimonious_coeffs: pd.DataFrame) -> Path:
     ests = pd.read_csv(
-        coefs_path(spec.scenario, parsimonious_name, output_label=spec.output_label)
+        coefs_path(spec.artifact_key, parsimonious_name, output_label=spec.output_label)
     )
     ests = ests.set_index("term")
 
@@ -533,7 +562,7 @@ def _write_valuation_report(spec: EstimationSpec, parsimonious_name: str, parsim
     lines = latex_wtp.split("\n")[5:-3]
     if lines[-1].endswith("\\\\"):
         lines[-1] = lines[-1][:-2]
-    outpath = latex_valuation_path(spec.scenario, output_label=spec.output_label)
+    outpath = latex_valuation_path(spec.artifact_key, output_label=spec.output_label)
     outpath.write_text("\n".join(lines))
     return outpath
 
@@ -560,19 +589,19 @@ def run_estimation(spec: EstimationSpec, compute: bool = True, report: bool = Tr
                 "overwriting canonical artifacts."
             )
 
-    results_dir = coefs_path(spec.scenario, "full", output_label=spec.output_label).parent
+    results_dir = coefs_path(spec.artifact_key, "full", output_label=spec.output_label).parent
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    design_matrix = pd.read_csv(design_matrix_path(spec.scenario))
+    design_matrix = pd.read_csv(design_matrix_path(spec.artifact_key))
     generated_reports: list[str] = []
 
     if report:
         summary_statistics_to_latex(
             design_matrix,
-            str(latex_summary_stats_path(spec.scenario, output_label=spec.output_label)),
+            str(latex_summary_stats_path(spec.artifact_key, output_label=spec.output_label)),
         )
         generated_reports.append(
-            latex_summary_stats_path(spec.scenario, output_label=spec.output_label).name
+            latex_summary_stats_path(spec.artifact_key, output_label=spec.output_label).name
         )
 
     surviving_binary, surviving_float, removed_zero_variance = drop_zero_variance_variables(
@@ -655,7 +684,7 @@ def run_estimation(spec: EstimationSpec, compute: bool = True, report: bool = Tr
                     vars_int,
                     run_prefix,
                     repo,
-                    spec.scenario,
+                    spec.artifact_key,
                     str(spec.num_runs),
                     seed=spec.seed,
                     compute=compute,
@@ -678,7 +707,7 @@ def run_estimation(spec: EstimationSpec, compute: bool = True, report: bool = Tr
                 parsimonious_name = "full_significant"
                 parsimonious_coeffs, parsimonious_stats = postprocess_spatialdc(
                     repo,
-                    spec.scenario,
+                    spec.artifact_key,
                     parsimonious_name,
                     output_label=spec.output_label,
                 )
@@ -686,7 +715,7 @@ def run_estimation(spec: EstimationSpec, compute: bool = True, report: bool = Tr
                 parsimonious_name = f"exclude_{gts_iteration - 1}_{exclude[-1].replace(':', '_')}"
                 parsimonious_coeffs, parsimonious_stats = postprocess_spatialdc(
                     repo,
-                    spec.scenario,
+                    spec.artifact_key,
                     parsimonious_name,
                     output_label=spec.output_label,
                 )

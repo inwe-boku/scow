@@ -8,7 +8,7 @@ def main() -> None:
     build_social_cost_atlas(
         repo_root=repo,
         atlas_file=atlas_path,
-        scenario=study.scenario,
+        study=study,
     )
 
 

@@ -74,7 +74,7 @@ def test_stage4_to_stage5_artifact_handoff_smoke(tmp_path, monkeypatch):
         paths.opt_metadata_path("2014", objective).write_text(
             json.dumps(
                 {
-                    "scenario": "2014",
+                    "artifact_key": "2014",
                     "objective": objective,
                     "spacing": 3,
                     "num_slices": 6,

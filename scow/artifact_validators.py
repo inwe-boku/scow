@@ -14,7 +14,7 @@ from scow.paths import opt_cost_path, opt_locations_path
 
 STAGE4_OBJECTIVES = {"lcoe", "loco", "soco"}
 STAGE4_METADATA_REQUIRED_KEYS = {
-    "scenario",
+    "artifact_key",
     "objective",
     "spacing",
     "num_slices",
@@ -47,7 +47,7 @@ def validate_soco_dataset(dataset: xr.Dataset) -> xr.Dataset:
 def validate_stage4_metadata(
     metadata: Mapping[str, object],
     *,
-    scenario: str | None = None,
+    artifact_key: str | None = None,
     objective: str | None = None,
 ) -> Mapping[str, object]:
     """Validate the final stage-4 metadata sidecar."""
@@ -59,13 +59,15 @@ def validate_stage4_metadata(
     if meta_objective not in STAGE4_OBJECTIVES:
         raise ValueError(f"Unknown stage-4 objective in metadata: {meta_objective}")
 
-    if scenario is not None and metadata["scenario"] != scenario:
-        raise ValueError(f"Metadata scenario {metadata['scenario']} does not match expected {scenario}")
+    if artifact_key is not None and metadata["artifact_key"] != artifact_key:
+        raise ValueError(
+            f"Metadata artifact_key {metadata['artifact_key']} does not match expected {artifact_key}"
+        )
     if objective is not None and meta_objective != objective:
         raise ValueError(f"Metadata objective {meta_objective} does not match expected {objective}")
 
-    expected_locations = opt_locations_path(str(metadata["scenario"]), meta_objective).name
-    expected_cost = opt_cost_path(str(metadata["scenario"]), meta_objective).name
+    expected_locations = opt_locations_path(str(metadata["artifact_key"]), meta_objective).name
+    expected_cost = opt_cost_path(str(metadata["artifact_key"]), meta_objective).name
     if metadata["locations_file"] != expected_locations:
         raise ValueError(
             f"Metadata locations_file {metadata['locations_file']} does not match expected {expected_locations}"
@@ -124,11 +126,11 @@ def validate_stage4_bundle(
     costs: pd.DataFrame | gpd.GeoDataFrame,
     metadata: Mapping[str, object],
     *,
-    scenario: str,
+    artifact_key: str,
     objective: str,
 ) -> None:
     """Validate one in-memory final stage-4 output bundle."""
-    validate_stage4_metadata(metadata, scenario=scenario, objective=objective)
+    validate_stage4_metadata(metadata, artifact_key=artifact_key, objective=objective)
     validated_locations = validate_stage4_locations(locations)
     validated_costs = validate_stage4_costs(costs, objective)
 

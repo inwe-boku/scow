@@ -21,7 +21,7 @@ def _write_stage4_bundle(tmp_path, monkeypatch, *, objective="lcoe", include_obj
         }
     )
     metadata = {
-        "scenario": "2014",
+        "artifact_key": "2014",
         "objective": objective,
         "spacing": 3,
         "num_slices": 6,

@@ -9,6 +9,7 @@ class OptimizationRequest:
     """Minimal reusable description of one optimization solve."""
 
     scenario: str
+    artifact_key: str
     objective: str
     spacing: int
     num_turbines: int | str
@@ -23,6 +24,7 @@ class OptimizationArtifacts:
     """Minimal path-based handle for one optimization output family."""
 
     scenario: str
+    artifact_key: str
     objective: str
     locations_path: Path
     cost_path: Path
