@@ -21,7 +21,7 @@ from scow.paths import (
     soco_facet_figure_path,
 )
 from scow.postprocess_sites_helpers import annual_cost, build_cost_comparison, sites_to_target
-from scow.postprocess_wtp_helpers import cost_distribution_frame
+from scow.postprocess_wtp_helpers import cost_distribution_frame, social_cost_display_name
 from scow.social_cost import get_social_cost_atlas, open_social_cost_atlas
 from scow.stage4_outputs import load_stage4_costs
 from social_cost_inference.reporting import ReportArtifacts, ReportingRequest
@@ -36,6 +36,16 @@ def latex_cost_comparison_fragment(df):
         cells.extend(f"{float(row[col]):.1f}" for col in df.columns if col != "Wind Turbines")
         lines.append(f"{label} & " + " & ".join(cells) + r" \\")
     return "\n".join(lines)
+
+
+def _colorbar_label(layer) -> str:
+    """Return the explicit colorbar label for one plotted stage-3 layer."""
+
+    display_name = layer.attrs.get("long_name") or social_cost_display_name(str(layer.name))
+    unit = layer.attrs.get("units") or layer.attrs.get("unit")
+    if unit:
+        return f"{display_name} [{unit}]"
+    return display_name
 
 
 def generate_reports(
@@ -65,11 +75,16 @@ def generate_reports(
         opt_cost_lcoe = validate_stage4_costs(load_stage4_costs(request.artifact_key, "lcoe"), "lcoe")
 
         lcoe = social_cost["min_lcoe"].copy()
-        lcoe.name = "Quasi-LCOE"
+        lcoe.attrs["long_name"] = "Quasi-LCOE"
+        lcoe.attrs["units"] = "€/MWh"
         lcoe.attrs["unit"] = "€/MWh"
 
         fig, ax = plt.subplots(figsize=(7, 5))
-        social_cost["Local Social Cost"].plot(ax=ax, robust=True)
+        social_cost["Local Social Cost"].plot(
+            ax=ax,
+            robust=True,
+            cbar_kwargs={"label": _colorbar_label(social_cost["Local Social Cost"])},
+        )
         ax.set_title("")
         ax.axis("off")
         plt.tight_layout()
@@ -77,7 +92,11 @@ def generate_reports(
         plt.close()
 
         fig, ax = plt.subplots(figsize=(7, 5))
-        lcoe.plot(ax=ax, robust=True)
+        lcoe.plot(
+            ax=ax,
+            robust=True,
+            cbar_kwargs={"label": _colorbar_label(lcoe)},
+        )
         ax.set_title("")
         ax.axis("off")
         plt.tight_layout()
@@ -101,8 +120,9 @@ def generate_reports(
         fig, axes = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(26, num_rows * 5))
         axes = axes.flatten()
         for i, var in enumerate(social_cost.data_vars):
-            social_cost[var].plot(ax=axes[i])
-            axes[i].set_title(var)
+            layer = social_cost[var]
+            layer.plot(ax=axes[i], cbar_kwargs={"label": _colorbar_label(layer)})
+            axes[i].set_title(layer.attrs.get("long_name", var))
             axes[i].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         for j in range(i + 1, num_rows * num_cols):
             fig.delaxes(axes[j])

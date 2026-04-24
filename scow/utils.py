@@ -2,13 +2,14 @@
 import json
 import logging
 import subprocess
+import hashlib
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 from scipy.stats import t
 from config import rdir, replication_seed
-from scow.paths import coefs_path, loglik_path, stage2_metadata_path
+from scow.paths import coefs_path, design_matrix_path, loglik_path, stage2_metadata_path
 
 
 def _raise_if_nan(frame, columns, run_name, artifact_name):
@@ -73,6 +74,8 @@ def _cached_run_matches_terms(
         metadata = json.loads(metadata_file.read_text())
     except (OSError, json.JSONDecodeError):
         return False
+    if metadata.get("design_matrix_sha256") != _design_matrix_sha256(data_file):
+        return False
     if metadata.get("artifact_key") != data_file:
         return False
     if metadata.get("run_name") != _artifact_run_name(run_name):
@@ -87,6 +90,21 @@ def _cached_run_matches_terms(
         return False
 
     return True
+
+
+def _design_matrix_sha256(data_file):
+    path = design_matrix_path(data_file)
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _write_stage2_design_matrix_fingerprint(metadata_path, data_file):
+    metadata = json.loads(Path(metadata_path).read_text())
+    metadata["design_matrix_sha256"] = _design_matrix_sha256(data_file)
+    Path(metadata_path).write_text(json.dumps(metadata, separators=(",", ":"), ensure_ascii=False))
 
 
 def _artifact_run_name(run_name):
@@ -155,12 +173,16 @@ def subprocess_rscript(
         source_coef = Path(work_dir) / "data" / "results" / f"spatialdc_coefs_{datafile}_{temp_run_name}.csv"
         source_loglik = Path(work_dir) / "data" / "results" / f"spatialdc_loglik_{datafile}_{temp_run_name}.csv"
         source_meta = Path(work_dir) / "data" / "results" / f"spatialdc_meta_{datafile}_{temp_run_name}.json"
+        _write_stage2_design_matrix_fingerprint(source_meta, datafile)
         target_coef = coefs_path(datafile, artifact_run_name, output_label=output_label)
         target_loglik = loglik_path(datafile, artifact_run_name, output_label=output_label)
         target_meta = stage2_metadata_path(datafile, artifact_run_name, output_label=output_label)
         source_coef.replace(target_coef)
         source_loglik.replace(target_loglik)
         source_meta.replace(target_meta)
+    else:
+        source_meta = Path(work_dir) / "data" / "results" / f"spatialdc_meta_{datafile}_{temp_run_name}.json"
+        _write_stage2_design_matrix_fingerprint(source_meta, datafile)
 
 
 def postprocess_spatialdc(work_dir, datafile, run_name, output_label=None):

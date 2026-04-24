@@ -101,6 +101,8 @@ class Stage1Payload:
     buildings_in_greenland_source: Path
     existing_turbines_built_before_year: int
     design_matrix_specs: tuple[Stage1DesignMatrixSpec, ...]
+    important_bird_areas_source: Path | None = None
+    overnight_stays_source: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -216,6 +218,8 @@ class ScowStudy(SpatialDecisionStudy):
                 buildings_in_greenland_source=study.source_data_root
                 / "03_distance_settlement_inputs"
                 / "noe_erhaltenswerte_gebaeude_rru_wi_geb_epsg31259.zip",
+                important_bird_areas_source=None,
+                overnight_stays_source=None,
                 existing_turbines_built_before_year=study.decision_year + 1,
                 design_matrix_specs=(
                     Stage1DesignMatrixSpec("lower_austria_wind_2024", self.turbines),
@@ -226,6 +230,8 @@ class ScowStudy(SpatialDecisionStudy):
             zoning_source=site_root / "zones" / "Zonierung_noe.shp",
             municipal_zoning_source=site_root / "landuse" / "Widmungen_noe.shp",
             buildings_in_greenland_source=site_root / "landuse" / "Erhaltenswerte_gebaeude.shp",
+            important_bird_areas_source=site_root / "iba" / "Europe_KBA.shp",
+            overnight_stays_source=site_root / "tourism" / "Naechtigungen.shp",
             existing_turbines_built_before_year=2015,
             design_matrix_specs=(
                 Stage1DesignMatrixSpec("2014", TURBINES_2014),

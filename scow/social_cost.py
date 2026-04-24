@@ -9,6 +9,7 @@ from scow.analysis_atlas import load_analysis_atlas
 from scow.logging_utils import configure_script_logging
 from scow.paths import parsimonious_name_path, soco_path
 from scow.postprocess_wtp_helpers import (
+    annotate_social_cost_dataset,
     build_interaction_layers,
     compute_social_cost_dataset,
 )
@@ -105,4 +106,4 @@ def open_social_cost_atlas(
         else Path(social_cost_atlas)
     )
     open_kwargs = {} if engine is None else {"engine": engine}
-    return validate_soco_dataset(xr.open_dataset(netcdf_path, **open_kwargs))
+    return validate_soco_dataset(annotate_social_cost_dataset(xr.open_dataset(netcdf_path, **open_kwargs)))

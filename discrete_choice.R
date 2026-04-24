@@ -20,10 +20,10 @@ bootstrap_stage2_project_library <- function() {
 
 bootstrap_stage2_project_library()
 
-library(logitr)
-library(tidyverse)
-library(broom)
-library(parallel)
+suppressPackageStartupMessages(library(logitr))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(broom))
+suppressPackageStartupMessages(library(parallel))
 
 DEBUG <- FALSE
 
@@ -55,11 +55,26 @@ do_estimate <- function(j){
       slice_sample(n = n_choices, replace = FALSE) %>%
       mutate(choiceid = row_number()) %>%
       bind_rows(zone_in) %>% arrange(choiceid)
-    logitr(
-      data = X,
-      outcome = "zoning",
-      obsID = "choiceid",
-      pars = base_mod
+    tryCatch(
+      list(
+        ok = TRUE,
+        model = logitr(
+          data = X,
+          outcome = "zoning",
+          obsID = "choiceid",
+          pars = base_mod,
+          options = list(
+            print_level = 0,
+            xtol_rel = 1e-6,
+            xtol_abs = 1e-6,
+            ftol_rel = 1e-6,
+            ftol_abs = 1e-6,
+            maxeval = 200,
+            algorithm = "NLOPT_LD_LBFGS"
+          )
+        )
+      ),
+      error = function(e) list(ok = FALSE, error = conditionMessage(e))
     )
 }
 
@@ -129,7 +144,7 @@ main <- function() {
 
   setwd(work_dir)
 
-  geodat_noe <- read_csv(sprintf('data/processed/dc_data_%s.csv', datafile))
+  geodat_noe <- read_csv(sprintf('data/processed/dc_data_%s.csv', datafile), show_col_types = FALSE)
   geodat_noe <- mutate(geodat_noe, zoning = if_else(zoning > 0, 1L, 0L))
   geodat_noe <- geodat_noe %>% mutate(across(any_of(integer_model_vars), as.integer))
 
@@ -220,11 +235,37 @@ main <- function() {
   )
   on.exit(stopCluster(cl), add = TRUE)
   parallel::clusterSetRNGStream(cl, seed)
-  clusterEvalQ(cl, library("logitr", quietly = TRUE))
-  clusterEvalQ(cl, library("dplyr", quietly = TRUE, warn.conflicts = FALSE))
+  clusterEvalQ(cl, suppressPackageStartupMessages(library("logitr", quietly = TRUE)))
+  clusterEvalQ(cl, suppressPackageStartupMessages(library("dplyr", quietly = TRUE, warn.conflicts = FALSE)))
   clusterExport(cl, c("zone_out", "zone_in", "base_mod", "n_choices"), envir = environment())
 
-  models <- parLapply(cl, NMB_RUNS, fun = do_estimate)
+  model_results <- parLapply(cl, NMB_RUNS, fun = do_estimate)
+  failures <- Filter(function(result) !isTRUE(result$ok), model_results)
+  models <- lapply(Filter(function(result) isTRUE(result$ok), model_results), `[[`, "model")
+  if (length(failures) > 0L) {
+    failure_messages <- vapply(failures, `[[`, character(1), "error")
+    failure_table <- sort(table(failure_messages), decreasing = TRUE)
+    message(
+      "Stage-2 note: ",
+      length(failures),
+      " of ",
+      num_runs,
+      " estimation runs failed and were skipped. Top failure counts: ",
+      paste(
+        names(failure_table)[seq_len(min(3L, length(failure_table)))],
+        as.integer(failure_table[seq_len(min(3L, length(failure_table)))]),
+        sep = " x",
+        collapse = " | "
+      )
+    )
+  }
+  if (length(models) == 0L) {
+    stop(sprintf(
+      "All %d estimation runs failed or were skipped. Most common worker error: %s",
+      num_runs,
+      if (length(failures) > 0L) names(sort(table(vapply(failures, `[[`, character(1), "error")), decreasing = TRUE))[1] else "unknown"
+    ))
+  }
 
   coefs <- lapply(models, tidy, simplify = FALSE)
   coefs <- dplyr::bind_rows(coefs, .id = "mod")
@@ -241,6 +282,7 @@ main <- function() {
       artifact_key = datafile,
       run_name = specif,
       num_runs = num_runs,
+      successful_runs = length(models),
       seed = seed,
       integer_count = integer_count,
       variables = restore_colons(base_mod, colons_mapping)

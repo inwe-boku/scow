@@ -6,6 +6,34 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+COST_UNIT_EUR_PER_MWH = "€/MWh"
+
+
+def social_cost_display_name(name: str) -> str:
+    """Return the canonical display label for one stage-3 cost layer."""
+
+    if name == "min_lcoe":
+        return "Quasi-LCOE"
+    return name
+
+
+def annotate_social_cost_dataset(soco: xr.Dataset) -> xr.Dataset:
+    """Normalize stage-3 cost-layer metadata for plotting and NetCDF export."""
+
+    normalized = soco.copy()
+    for name, da in normalized.data_vars.items():
+        attrs = {
+            "long_name": social_cost_display_name(name),
+            "units": COST_UNIT_EUR_PER_MWH,
+            "unit": COST_UNIT_EUR_PER_MWH,
+        }
+        if name == "min_lcoe":
+            attrs.update({key: value for key, value in da.attrs.items() if key.startswith("cleo:")})
+        elif name != "Local Social Cost":
+            attrs["source_variable"] = name
+        da.attrs = attrs
+    return normalized
+
 
 def build_interaction_layers(landscape_data: xr.Dataset, terms) -> xr.Dataset:
     """Return a dataset with required interaction layers added for stage-3 terms."""
@@ -45,8 +73,7 @@ def compute_social_cost_dataset(spatial_data: xr.Dataset, valuations: pd.Series)
     if float(local_min) < 0:
         soco["Local Social Cost"] = soco["Local Social Cost"] - local_min
 
-    soco["Local Social Cost"].attrs["unit"] = "€/MWh"
-    return soco
+    return annotate_social_cost_dataset(soco)
 
 
 def cost_distribution_frame(soco: xr.Dataset, cut_off: float) -> pd.DataFrame:

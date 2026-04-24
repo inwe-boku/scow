@@ -8,7 +8,7 @@ convert_names = {
     'alps_convention': 'Alpine Convention',
     'protected_areas': 'Protected areas',
     'important_bird_areas': 'Important bird areas',
-    'important_bird_areas:protected_areas': 'Protected areas $\\times$ Important bird areas',
+    'protected_areas:important_bird_areas': 'Protected areas $\\times$ Important bird areas',
     'preservation': 'Landscapes worth preserving',
     'pastures': 'Pastures',
     'restricted_military_areas': 'Restricted military areas',
@@ -27,8 +27,8 @@ convert_names = {
     'slope': 'Terrain slope',
     'overnight_stays': 'Touristic overnights',
     'min_lcoe': 'Quasi-LCOE',
-    'broadleaved:tree_cover_density': 'Tree cover density $\\times$ Broadleaved',
-    'coniferous:tree_cover_density': 'Tree cover density $\\times$ Coniferous',
+    'tree_cover_density:broadleaved': 'Tree cover density $\\times$ Broadleaved',
+    'tree_cover_density:coniferous': 'Tree cover density $\\times$ Coniferous',
     }
 
 units = {

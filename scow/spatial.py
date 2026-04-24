@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -191,6 +192,12 @@ def _load_vector_source(source: Path, *, target_crs: str, encoding: str | None =
     return frame.to_crs(target_crs)
 
 
+def _clip_to_study_area(frame: gpd.GeoDataFrame, atlas: cleo.Atlas, study: ScowStudy) -> gpd.GeoDataFrame:
+    """Clip one vector layer to the selected study area."""
+
+    return frame.clip(atlas.get_nuts_area(study.area_name).geometry)
+
+
 def build_spatial_atlas(study: ScowStudy, repo_root: Path) -> cleo.Atlas:
     """Initialize and populate the SCOW atlas stores used by stage 1."""
     with timed_step("initialize atlas"):
@@ -208,14 +215,40 @@ def ensure_scow_landscape_layers(atlas: cleo.Atlas, study: ScowStudy, repo_root:
     payload = study.stage1_payload(repo_root)
     landscape_vars = set(atlas.landscape.data.data_vars)
 
-    if "overnight_stays" not in landscape_vars:
+    if payload.overnight_stays_source is not None and payload.overnight_stays_source.exists():
+        with timed_step("rasterize overnight_stays"):
+            overnight_stays = _clip_to_study_area(
+                _load_vector_source(payload.overnight_stays_source, target_crs=atlas.crs),
+                atlas,
+                study,
+            )
+            atlas.landscape.rasterize(
+                overnight_stays.fillna({"Naechtigun": 0.0}),
+                name="overnight_stays",
+                column="Naechtigun",
+                all_touched=TOUCH,
+                if_exists="replace",
+            ).materialize()
+    elif "overnight_stays" not in landscape_vars:
         with timed_step("bootstrap exempt overnight_stays"):
             _stage_computed_raster(
                 atlas,
                 _zero_on_valid_mask(atlas.landscape.data["valid_mask"], "overnight_stays"),
                 "overnight_stays",
             )
-    if "important_bird_areas" not in landscape_vars:
+    if payload.important_bird_areas_source is not None and payload.important_bird_areas_source.exists():
+        with timed_step("rasterize important_bird_areas"):
+            atlas.landscape.rasterize(
+                _clip_to_study_area(
+                    _load_vector_source(payload.important_bird_areas_source, target_crs=atlas.crs),
+                    atlas,
+                    study,
+                ),
+                name="important_bird_areas",
+                all_touched=TOUCH,
+                if_exists="replace",
+            ).materialize()
+    elif "important_bird_areas" not in landscape_vars:
         with timed_step("bootstrap exempt important_bird_areas"):
             _stage_computed_raster(
                 atlas,
@@ -223,14 +256,16 @@ def ensure_scow_landscape_layers(atlas: cleo.Atlas, study: ScowStudy, repo_root:
                 "important_bird_areas",
             )
 
-    if "zoning" not in atlas.landscape.data.data_vars:
+    if payload.zoning_source.exists():
         with timed_step("rasterize zoning"):
             atlas.landscape.rasterize(
                 _load_vector_source(payload.zoning_source, target_crs=atlas.crs),
                 name="zoning",
                 all_touched=TOUCH,
-                if_exists="noop",
+                if_exists="replace",
             ).materialize()
+    elif "zoning" not in atlas.landscape.data.data_vars:
+        raise FileNotFoundError(f"Missing zoning source for stage 1: {payload.zoning_source}")
 
     if "elevation" not in atlas.landscape.data.data_vars:
         with timed_step("add elevation"):
@@ -471,7 +506,17 @@ def export_design_matrix_for_turbines(
             economics=ECONOMICS,
         )
     with timed_step(f"export {spec.name} design matrix"):
-        _stage_computed_raster(atlas, min_lcoe, "min_lcoe")
+        # Cells at the GWA raster boundary have no wind data for any turbine
+        # and produce NaN min_lcoe. This is expected — those cells are outside
+        # the valid study area and are removed by the dropna below. Suppress
+        # the dask/numpy nanmin warning that fires for those boundary chunks.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="All-NaN slice encountered",
+                category=RuntimeWarning,
+            )
+            _stage_computed_raster(atlas, min_lcoe, "min_lcoe")
         design_matrix = atlas.flatten(domain="landscape")
         design_matrix = design_matrix.dropna(how="any", axis=0)
         design_matrix.to_csv(processed_root / f"dc_data_{spec.name}.csv")

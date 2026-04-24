@@ -529,7 +529,7 @@ def _write_valuation_report(spec: EstimationSpec, parsimonious_name: str, parsim
     ests = ests.set_index("term")
 
     wtp_confidence = []
-    for mod_nr in range(1, spec.num_runs + 1):
+    for mod_nr in sorted(ests["mod"].unique()):
         run_estimates = ests[ests["mod"] == mod_nr]["estimate"]
         wtp_confidence.append(run_estimates / run_estimates.loc["min_lcoe"])
 
@@ -550,7 +550,6 @@ def _write_valuation_report(spec: EstimationSpec, parsimonious_name: str, parsim
         else r"\euro/\si{\mega\watt\hour}"
         for key, value in units.items()
     }
-    wtp.loc["coniferous:tree_cover_density", "Unit"] = r"\euro/\si{\mega\watt\hour}"
 
     wtp = wtp.rename(index=convert_names)
     wtp["Unit"] = wtp.index.map(units_wtp)

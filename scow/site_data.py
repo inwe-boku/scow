@@ -417,10 +417,16 @@ def generate_data_dict(data_path, wdpa_date="Mar2024", country="AUT"):
         'gridkit_europe.zip':
             [data_path / 'grid',
              'https://zenodo.org/record/47317/files/gridkit_euorpe.zip?download=1'],
+        # WARNING: Zonierung_noe.shp must be the 2014 P19 zoning layer (RRU_WIND_ZONEN_P19),
+        # which is byte-for-byte identical to the locally staged RRU_WIND_ZONEN_P19Polygon_0.*
+        # files. The P19 WFS endpoint is no longer online. The active URL below serves the
+        # current P20 layer (RRU_WIND_ZONEN_P20_ROG14), which is a different geometry and must
+        # NOT be used as a substitute for the 2014 baseline. Do not re-download this entry
+        # from the active URL; obtain Zonierung_noe.shp from the locally staged P19 source.
         'Zonierung_noe.zip':
             [data_path / 'zones',
-             # "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P19&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],  # Zoning as of 2024; no longer online
-             "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P20_ROG14&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],  # Zoning as of 2024
+             # "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P19&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],  # 2014 P19 baseline — no longer online
+             "https://sdi.noe.gv.at/at.gv.noe.geoserver/OGD/wfs?request=GetFeature&version=1.1.0&typeName=OGD:RRU_WIND_ZONEN_P20_ROG14&srsName=EPSG:31259&outputFormat=shape-zip&format_options=CHARSET:UTF-8"],  # current P20 layer — WRONG for 2014 baseline
         'B_gip_network_ogd.zip':
             [data_path / 'gip',
              'https://open.gip.gv.at/ogd/B_gip_network_ogd.zip'],

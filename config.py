@@ -7,7 +7,7 @@ from scow.study import ScowStudy
 # %% config
 repo = Path(__file__).resolve().parent
 atlas_path = repo / "data" / "atlas"
-study = ScowStudy.from_study_id("lower_austria_wind_2014")
+study = ScowStudy.from_study_id("lower_austria_wind_2014", num_runs=2500)
 data_ver = study.scenario  # legacy runtime scenario label used by the current executable workflow
 
 num_runs = str(study.num_runs)

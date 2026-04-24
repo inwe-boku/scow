@@ -62,6 +62,14 @@ def test_scow_study_from_study_id_builds_2024_stage1_payload(tmp_path):
     assert payload.design_matrix_specs[0].name == "lower_austria_wind_2024"
 
 
+def test_legacy_2014_stage1_payload_points_at_historical_restricted_sources(tmp_path):
+    payload = ScowStudy(scenario="2014").stage1_payload(tmp_path)
+
+    assert payload.zoning_source.name == "Zonierung_noe.shp"
+    assert payload.important_bird_areas_source.name == "Europe_KBA.shp"
+    assert payload.overnight_stays_source.name == "Naechtigungen.shp"
+
+
 def test_legacy_scenario_mode_keeps_supported_2014_and_modern_artifact_names():
     baseline = ScowStudy(scenario="2014")
     modern = ScowStudy(scenario="modern")

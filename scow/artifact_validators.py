@@ -37,9 +37,12 @@ def validate_soco_dataset(dataset: xr.Dataset) -> xr.Dataset:
     if missing:
         raise ValueError(f"soco dataset is missing required variables: {', '.join(missing)}")
 
-    unit = dataset["Local Social Cost"].attrs.get("unit")
-    if unit != "€/MWh":
-        raise ValueError("Local Social Cost must declare unit '€/MWh'")
+    for name, da in dataset.data_vars.items():
+        unit = da.attrs.get("units") or da.attrs.get("unit")
+        if unit != "€/MWh":
+            raise ValueError(f"{name} must declare unit '€/MWh'")
+        if not str(da.attrs.get("long_name", "")).strip():
+            raise ValueError(f"{name} must declare a non-empty long_name")
 
     return dataset
 

@@ -29,6 +29,17 @@ The analysis includes proprietary data which must be obtained from:
 - **Important Bird Areas**: BirdLife International via [BirdLife Data Zone](https://datazone.birdlife.org/site/requestgis)
 - **Overnight Stays in Austrian Municipalities**: Statistics Austria (request via [info@statistik.gv.at](mailto:info@statistik.gv.at))
 
+In this local checkout, historical 2014 copies of those restricted inputs are now staged under:
+
+- `data/site/iba/`
+- `data/site/tourism/`
+
+The original 2014 wind-zoning geometry is also staged locally under `data/site/zones/`. Its canonical `Zonierung_noe.*` files now refer to the 2014 baseline layer, while the current public P20 layer remains alongside it as `RRU_WIND_ZONEN_P20_ROG14Polygon_0.*`.
+
+Those local files are not tracked in git and are not redistributed by this repository. Fresh checkouts still need to obtain the restricted sources separately.
+
+When those local 2014 sources are present, the live stage-1 rebuild path uses them for the `zoning`, `important_bird_areas`, and `overnight_stays` covariates. Without them, stage 1 still falls back to the restricted-data placeholder behavior for `important_bird_areas` and `overnight_stays`.
+
 All other data are downloaded from sources referenced in:
 ```python
 from scow.site_data import generate_data_dict
@@ -147,7 +158,7 @@ Execute the scripts sequentially:
 
 2. **02_estimate_wtp.py**: A Python-first stage-2 driver around R code in `discrete_choice.R`, producing files like `spatialdc_coefs_{datafile}_{run_name}.csv` in `data/results`.
 
-   Stage 2 now also writes `spatialdc_meta_{datafile}_{run_name}.json` sidecars so repeated model-search runs only reuse cached artifacts when the artifact key, seed, run count, integer partition, and exact term list still match.
+   Stage 2 now also writes `spatialdc_meta_{datafile}_{run_name}.json` sidecars so repeated model-search runs only reuse cached artifacts when the artifact key, design-matrix fingerprint, seed, run count, integer partition, and exact term list still match.
 
    The primary configuration surface is now the Python `EstimationSpec` / preset API in `scow.estimation`. The script still runs directly with no arguments, and also supports a thin CLI for common overrides, for example:
 
